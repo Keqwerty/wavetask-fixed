@@ -3,6 +3,7 @@ version = 1
 [[annotations]]
 path = [
     "PKGBUILD",
+    "*.patch",
     "README.md",
     "keys/**",
     ".SRCINFO",

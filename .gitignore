@@ -19,3 +19,7 @@ src/
 
 # End of https://www.toptal.com/developers/gitignore/api/archlinuxpackages
 
+# makepkg VCS source clone and local tooling
+wavetask/
+.claude/
+
