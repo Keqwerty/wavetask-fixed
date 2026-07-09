@@ -47,12 +47,10 @@ _pkgsrc="$_pkgname"
 source=(
   "$_pkgsrc::git+$url.git"
   'blur-permanent.patch'
-  'tahoe-blur-corner.patch'
 )
 sha256sums=(
   'SKIP'
   '38fc4eb35400044845902082f3d8c11b98f9a6901f8e423611a967142dfb44d3'
-  '6f20978310f5fe965e38e20d5c9ae22a07fd0eaf43f082937b5f2b407424b176'
 )
 
 options=('!debug')
@@ -66,8 +64,6 @@ prepare() {
   cd "$_pkgsrc"
   # Mantener el blur permanente en skins que lo habilitan (p. ej. Tahoe Dark).
   patch -p1 < "$srcdir/blur-permanent.patch"
-  # Ajustar el radio de la máscara de blur al del fondo para que no sobresalga.
-  patch -p1 < "$srcdir/tahoe-blur-corner.patch"
 }
 
 build() {
