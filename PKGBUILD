@@ -68,6 +68,9 @@ prepare() {
   patch -p1 < "$srcdir/blur-permanent.patch"
   # Redondear un poco más la máscara de blur para que no sobresalga del fondo.
   patch -p1 < "$srcdir/tahoe-blur-corner.patch"
+  # Skin extra "Tahoe Blur": blur nativo de KWin sin imagen de fondo. Son
+  # archivos nuevos, así que se copian desde el repo (no es un parche).
+  cp -a "$startdir/skins/Tahoe Blur" package/contents/skins/
 }
 
 build() {
