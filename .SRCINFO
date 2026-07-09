@@ -35,7 +35,9 @@ pkgbase = wavetask-git
 	options = !debug
 	source = wavetask::git+https://github.com/vickoc911/org.vicko.wavetask.git
 	source = blur-permanent.patch
+	source = tahoe-blur-corner.patch
 	sha256sums = SKIP
 	sha256sums = 38fc4eb35400044845902082f3d8c11b98f9a6901f8e423611a967142dfb44d3
+	sha256sums = e009a4c2ad2a236a4ddc89e688d4e72fa345c21e768e1c4d850c794c25748e14
 
 pkgname = wavetask-git
