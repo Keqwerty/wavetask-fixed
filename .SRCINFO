@@ -38,6 +38,6 @@ pkgbase = wavetask-git
 	source = tahoe-blur-corner.patch
 	sha256sums = SKIP
 	sha256sums = 38fc4eb35400044845902082f3d8c11b98f9a6901f8e423611a967142dfb44d3
-	sha256sums = e009a4c2ad2a236a4ddc89e688d4e72fa345c21e768e1c4d850c794c25748e14
+	sha256sums = 947439591bf41860098531a915d098323cb1672d56da5bea523184a4b73105e2
 
 pkgname = wavetask-git
