@@ -19,7 +19,7 @@ QtObject {
     // interior muy sutil sobre el blur. El radio se hereda de blurRadius, así
     // que el filo sigue exactamente el borde de la región difuminada.
     property bool frame: true
-    property color frameColor: "#5effffff"   // ~37% blanco: filo claro
+    property color frameColor: "#30ffffff"   // ~19% blanco: filo claro sutil
     property color frameFill: "#1fffffff"    // ~12% blanco: panel translúcido
     property int frameBorder: 1
 

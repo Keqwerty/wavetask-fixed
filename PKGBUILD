@@ -2,7 +2,7 @@
 
 _pkgname=wavetask
 pkgname="$_pkgname-git"
-pkgver=1.4.r3.gdbc7fae
+pkgver=1.4.r4.g0ba7241
 pkgrel=1
 pkgdesc="A Plasma 6 task manager plasmoid with zoom effect"
 arch=('x86_64')
