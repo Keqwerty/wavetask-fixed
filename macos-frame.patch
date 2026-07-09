@@ -1,39 +1,188 @@
-Add an optional vector "frame" to the dock (macOS-style), no background image.
+macOS-style vector frame for the dock, with live settings for "Tahoe Blur".
 
-Skins can enable a rounded outline drawn with a QML Rectangle overlaid on the
-dock. Its corner radius defaults to the blur radius, so the outline follows the
-edge of KWin's native blur region by construction (same blurRadius), and it
-scales with the dock (icon count / zoom) like the rest of dockBackground.
+Draw an optional rounded outline over the dock with a QML Rectangle (no image).
+Its corner radius defaults to the blur radius, so the outline follows KWin's
+native blur region by construction and scales with the dock (icon count / zoom).
 
-The frame is opt-in per skin via new, all-optional Config.qml properties, so
-existing skins are unaffected:
+The frame is opt-in per skin via all-optional Config.qml properties, so existing
+skins are unaffected:
   frame        : bool   -- draw the outline
   frameColor   : color  -- outline color (default #59ffffff)
   frameFill    : color  -- interior tint over the blur (default transparent)
   frameBorder  : int    -- outline width in px (default 1)
   frameRadius  : int    -- corner radius (default = blurRadius)
+
+For the "Tahoe Blur" skin the corner radius and the panel tint (its brightness)
+are exposed in the plasmoid settings and applied live:
+  * config/main.xml       : tahoeFrameRadius / tahoeTintStrength / tahoeTintDark.
+  * ConfigAppearance.qml   : radius + tint sliders and a dark-tint checkbox,
+                             shown only when the "Tahoe Blur" skin is selected.
+  * main.qml               : loadSkinConfig() overrides blurRadius/frameRadius/
+                             frameFill from those keys for that skin; the config
+                             signals re-run loadSkinConfig(); onBlurRadiusChanged
+                             re-applies the blur region so the shape updates live.
+diff --git a/package/contents/config/main.xml b/package/contents/config/main.xml
+index 7b4f6fe..068e8cc 100644
+--- a/package/contents/config/main.xml
++++ b/package/contents/config/main.xml
+@@ -181,6 +181,18 @@
+       <label>Whether holding the Meta/Win key should display task index numbers above each icon.</label>
+       <default>true</default>
+     </entry>
++    <entry name="tahoeFrameRadius" type="Int">
++      <label>Tahoe Blur: corner radius of the blur region and its frame.</label>
++      <default>32</default>
++    </entry>
++    <entry name="tahoeTintStrength" type="Int">
++      <label>Tahoe Blur: strength (0-100 %) of the panel tint over the blur.</label>
++      <default>12</default>
++    </entry>
++    <entry name="tahoeTintDark" type="Bool">
++      <label>Tahoe Blur: tint the panel dark instead of light.</label>
++      <default>false</default>
++    </entry>
+   </group>
+ 
+ </kcfg>
+diff --git a/package/contents/ui/ConfigAppearance.qml b/package/contents/ui/ConfigAppearance.qml
+index 66d1bd3..89d11b9 100644
+--- a/package/contents/ui/ConfigAppearance.qml
++++ b/package/contents/ui/ConfigAppearance.qml
+@@ -46,6 +46,11 @@ KCMUtils.SimpleKCM {
+     property string cfg_skinName: Plasmoid.configuration.skinName
+     property alias cfg_showReflection: showReflection.checked
+ 
++    // Ajustes específicos del skin "Tahoe Blur".
++    property alias cfg_tahoeFrameRadius: tahoeRadiusSlider.value
++    property alias cfg_tahoeTintStrength: tahoeTintSlider.value
++    property alias cfg_tahoeTintDark: tahoeTintDark.checked
++
+     property alias cfg_cairoPenguinEnabled: cairoPenguinEnabled.checked
+ 
+     Component.onCompleted: {
+@@ -116,6 +121,54 @@ KCMUtils.SimpleKCM {
+             // Intentar sincronizar al completar por si el disco es ultra rápido
+             Component.onCompleted: syncValue()
+         }
++
++        // --- Ajustes del skin "Tahoe Blur" (sólo visibles con ese skin) ---
++        QQC2.Label {
++            Kirigami.FormData.isSection: true
++            visible: root.cfg_skinName === "Tahoe Blur"
++            text: "Tahoe Blur"
++        }
++
++        RowLayout {
++            Kirigami.FormData.label: "Corner radius:"
++            visible: root.cfg_skinName === "Tahoe Blur"
++            spacing: Kirigami.Units.smallSpacing
++
++            QQC2.Slider {
++                id: tahoeRadiusSlider
++                Layout.fillWidth: true
++                from: 0
++                to: 60
++                stepSize: 1
++            }
++            QQC2.Label {
++                text: Math.round(tahoeRadiusSlider.value) + " px"
++            }
++        }
++
++        RowLayout {
++            Kirigami.FormData.label: "Panel tint:"
++            visible: root.cfg_skinName === "Tahoe Blur"
++            spacing: Kirigami.Units.smallSpacing
++
++            QQC2.Slider {
++                id: tahoeTintSlider
++                Layout.fillWidth: true
++                from: 0
++                to: 100
++                stepSize: 1
++            }
++            QQC2.Label {
++                text: Math.round(tahoeTintSlider.value) + " %"
++            }
++        }
++
++        QQC2.CheckBox {
++            id: tahoeTintDark
++            visible: root.cfg_skinName === "Tahoe Blur"
++            text: "Dark tint (dim the panel)"
++        }
++
+         // --- Selector de Tamaño de Iconos ---
+         RowLayout {
+             Kirigami.FormData.label: "Icon Size:"
 diff --git a/package/contents/ui/main.qml b/package/contents/ui/main.qml
-index 6208228..34c29df 100644
+index 60cde2f..97799c7 100644
 --- a/package/contents/ui/main.qml
 +++ b/package/contents/ui/main.qml
-@@ -180,7 +180,15 @@ PlasmoidItem {
+@@ -162,6 +162,23 @@ PlasmoidItem {
+           if (config) {
+               let skinFolderUrl = Qt.resolvedUrl("../skins/" + skinName + "/").toString();
+ 
++              // Valores base tomados del Config.qml del skin.
++              let blurRadiusVal = config.blurRadius;
++              let frameRadiusVal = config.frameRadius;
++              let frameFillVal = config.frameFill;
++
++              // Para el skin "Tahoe Blur" estos valores se controlan desde los
++              // ajustes del plasmoide (radio de esquinas y tono/brillo del panel),
++              // así el usuario los cambia en vivo sin tocar el Config.qml.
++              if (skinName === "Tahoe Blur") {
++                  const r = Plasmoid.configuration.tahoeFrameRadius;
++                  blurRadiusVal = r;
++                  frameRadiusVal = r;
++                  const a = Math.max(0, Math.min(100, Plasmoid.configuration.tahoeTintStrength)) / 100;
++                  const v = Plasmoid.configuration.tahoeTintDark ? 0 : 1;
++                  frameFillVal = Qt.rgba(v, v, v, a);
++              }
++
+               // Actualizamos skinParams de forma reactiva
+               tasks.skinParams = {
+                   imageTop: skinFolderUrl + config.imageTop,
+@@ -171,7 +188,7 @@ PlasmoidItem {
+                   image: skinFolderUrl + config.image,
+                   imagetask: skinFolderUrl + config.imagetask,
+                   blur: config.blur,
+-                  blurRadius: config.blurRadius,
++                  blurRadius: blurRadiusVal,
+                   positionTaskIndicator: config.positionTaskIndicator,
+                   left: config.leftMargin,
+                   top: config.topMargin,
+@@ -180,7 +197,15 @@ PlasmoidItem {
                    outLeft: config.outsideLeftMargin,
                    outTop: config.outsideTopMargin + tasks.topoutimage,
                    outRight: config.outsideRightMargin,
 -                  outBottom: config.outsideBottomMargin
 +                  outBottom: config.outsideBottomMargin,
-+                  // Marco vectorial opcional estilo macOS (sin imagen). Todos los
-+                  // campos son opcionales: si el skin no los define quedan como
-+                  // undefined y el Rectangle usa sus valores por defecto.
++                  // Marco vectorial opcional estilo macOS (sin imagen). Los campos
++                  // son opcionales; si el skin no los define quedan como undefined
++                  // y el Rectangle usa sus valores por defecto.
 +                  frame: config.frame === true,
 +                  frameColor: config.frameColor,
-+                  frameFill: config.frameFill,
++                  frameFill: frameFillVal,
 +                  frameBorder: config.frameBorder,
-+                  frameRadius: config.frameRadius
++                  frameRadius: frameRadiusVal
                };
  
                console.log("EXITO: Skin '" + skinName + "' cargada. Imagen: " + tasks.skinParams.image);
-@@ -844,6 +852,28 @@ PlasmoidItem {
+@@ -507,6 +532,12 @@ PlasmoidItem {
+                 loadSkinConfig();
+             }
+ 
++            // Ajustes en vivo del skin "Tahoe Blur" (radio de esquinas y tono
++            // del panel): releen el skin para reconstruir skinParams.
++            function onTahoeFrameRadiusChanged() { loadSkinConfig(); }
++            function onTahoeTintStrengthChanged() { loadSkinConfig(); }
++            function onTahoeTintDarkChanged() { loadSkinConfig(); }
++
+             function onLaunchersChanged(): void {
+                 tasksModel.launcherList = Plasmoid.configuration.launchers
+             }
+@@ -844,6 +875,28 @@ PlasmoidItem {
                  verticalTileMode: BorderImage.Stretch
                  z: -1
  
@@ -62,3 +211,15 @@ index 6208228..34c29df 100644
  
                  // --- INTEGRACIÓN DEL BLUR ---
  
+@@ -901,6 +954,11 @@ PlasmoidItem {
+ 
+                 onWindowChanged: scheduleBlurUpdate()
+ 
++                // Al cambiar el radio en vivo (ajustes de "Tahoe Blur") hay que
++                // reconstruir la región del blur y forzar el repintado, porque un
++                // cambio de forma no genera daño en la superficie por sí solo.
++                onBlurRadiusChanged: updateBlur(true)
++
+                 onVisibleChanged: {
+                     if (visible)
+                         scheduleBlurUpdate()
