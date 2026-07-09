@@ -1,20 +1,29 @@
 Keep the blur behind the dock permanent for skins that enable it (e.g. Tahoe Dark).
 
 KWin stops blurring the dock's region once it has been occluded (a maximized
-window, "Show Desktop"/Win+D, ...) and does not restore it until the surface
-produces damage, so the blur intermittently vanished and never came back.
+window, "Show Desktop"/Win+D, a virtual-desktop switch, ...) and does not restore
+it until the surface produces damage, so the blur intermittently vanished and
+never came back.
 
-Fix, event-driven (no continuous polling):
+Fix, event-driven with a state-gated safety heartbeat (no unconditional polling):
   * plugin/backend.{h,cpp}: expose the compositor "show desktop" state via
     KWindowSystem::showingDesktopChanged, which Win+D does not reflect in the
-    task model.
-  * package/contents/ui/main.qml: on that signal and on task-model changes
-    (open/close/maximize/minimize), re-assert the blur region every 500 ms for
-    a few seconds (a "kicked" watchdog that stops itself when idle) and force a
-    repaint via an imperceptible opacity nudge so KWin re-evaluates the region.
+    task model. (KF6 KWindowSystem no longer exposes activeWindow/currentDesktop
+    changes portably, so the remaining triggers live in QML.)
+  * package/contents/ui/main.qml: re-assert the blur region for a few seconds
+    (a "kicked" watchdog that stops itself when idle) and force a repaint via an
+    imperceptible opacity nudge so KWin re-evaluates the region, driven by:
+      - show-desktop toggles (backend.showingDesktop),
+      - task-model changes (open/close/maximize/minimize),
+      - virtual-desktop switches (TaskManager.VirtualDesktopInfo).
+    Plus a low-frequency Timer that runs ONLY while show-desktop is active (a
+    sustained state from which KWin can drop the region with no further event);
+    at idle it does not run, so the cost is nil.
+diff --git a/package/contents/ui/main.qml b/package/contents/ui/main.qml
+index 6208228..60cde2f 100644
 --- a/package/contents/ui/main.qml
 +++ b/package/contents/ui/main.qml
-@@ -850,47 +850,46 @@
+@@ -850,47 +850,46 @@ PlasmoidItem {
                  // Radio de blur
                  readonly property int blurRadius: tasks.skinParams.blurRadius || 24
  
@@ -47,16 +56,15 @@ Fix, event-driven (no continuous polling):
  
 -                    var pos = mapToItem(null, 0, 0);
 +                    const pos = mapToItem(null, 0, 0);
-+
+ 
+-                /*    if (tasks.vertical && !tasks.isLeftPanel) {
+-                        pos = mapToItem(null, - Kirigami.Units.smallSpacing * 3, 0);
+-                    } */
 +                    if (recover) {
 +                        // Limpiar primero para que una región idéntica no sea un no-op.
 +                        backend.setBlurBehind(win, false, 0, 0, 0, 0, 0);
 +                    }
  
--                /*    if (tasks.vertical && !tasks.isLeftPanel) {
--                        pos = mapToItem(null, - Kirigami.Units.smallSpacing * 3, 0);
--                    } */
--
 -                    backend.setBlurBehind(
 -                        win,
 -                        true,
@@ -86,7 +94,7 @@ Fix, event-driven (no continuous polling):
                  function scheduleBlurUpdate() {
                      Qt.callLater(updateBlur)
                  }
-@@ -903,10 +902,58 @@
+@@ -903,10 +902,79 @@ PlasmoidItem {
                  onWindowChanged: scheduleBlurUpdate()
  
                  onVisibleChanged: {
@@ -143,12 +151,70 @@ Fix, event-driven (no continuous polling):
 +                    function onCountChanged() { dockBackground.kickBlurRecovery() }
 +                    function onDataChanged() { dockBackground.kickBlurRecovery() }
 +                }
++
++                // Cambio de escritorio virtual: puede revelar un escritorio vacío
++                // o una ventana maximizada distinta sin tocar el modelo de tareas,
++                // y KWin no reevalúa por su cuenta la región del dock.
++                Connections {
++                    target: virtualDesktopInfo
++                    enabled: tasks.skinParams.blur === true
++                    function onCurrentDesktopChanged() { dockBackground.kickBlurRecovery() }
++                }
++
++                // Heartbeat con compuerta de estado: "Mostrar escritorio" es un
++                // estado sostenido del que KWin puede soltar la región del dock en
++                // cualquier momento sin emitir más señales; mientras está activo lo
++                // reafirmamos a baja frecuencia. Es declarativo: cuando showingDesktop
++                // vuelve a false el timer se detiene solo y el coste en reposo es nulo.
++                Timer {
++                    interval: 1000
++                    repeat: true
++                    running: tasks.skinParams.blur === true && tasks.backend.showingDesktop
++                    onTriggered: dockBackground.updateBlur(true)
++                }
              }
          }
  
+diff --git a/plugin/backend.cpp b/plugin/backend.cpp
+index 15b3de6..00a1e10 100644
+--- a/plugin/backend.cpp
++++ b/plugin/backend.cpp
+@@ -15,6 +15,7 @@
+ #include <KService>
+ #include <KServiceAction>
+ #include <KWindowEffects>
++#include <KWindowSystem>
+ 
+ #include <KApplicationTrader>
+ #include <KIO/ApplicationLauncherJob>
+@@ -70,6 +71,10 @@ Backend::Backend(QObject *parent)
+                 }
+             });
+ 
++    // Relay the compositor's "show desktop" (Win+D) state changes to QML so the
++    // blur behind the dock can be re-applied (KWin drops it in that transition).
++    connect(KWindowSystem::self(), &KWindowSystem::showingDesktopChanged, this, &Backend::showingDesktopChanged);
++
+     // Direct /dev/input keyboard monitoring (instant, no focus dependency)
+     initInputMonitor();
+ 
+@@ -295,6 +300,11 @@ void Backend::metaKeyReleased()
+ 
+ // --- End Meta Key Detection ---
+ 
++bool Backend::isShowingDesktop() const
++{
++    return KWindowSystem::showingDesktop();
++}
++
+ void Backend::setBlurBehind(QWindow *window, bool enable, int x, int y, int w, int h, int radius)
+ {
+     if (!window) {
+diff --git a/plugin/backend.h b/plugin/backend.h
+index 44144c6..1f83f15 100644
 --- a/plugin/backend.h
 +++ b/plugin/backend.h
-@@ -54,6 +54,10 @@
+@@ -54,6 +54,10 @@ public:
  
      Q_PROPERTY(bool metaKeyHeld READ isMetaKeyHeld NOTIFY metaKeyHeldChanged)
  
@@ -159,7 +225,7 @@ Fix, event-driven (no continuous polling):
      explicit Backend(QObject *parent = nullptr);
      ~Backend() override;
  
-@@ -74,11 +78,14 @@
+@@ -74,11 +78,14 @@ public:
  
      bool isMetaKeyHeld() const;
  
@@ -174,36 +240,3 @@ Fix, event-driven (no continuous polling):
  
  public Q_SLOTS:
      Q_SCRIPTABLE void metaKeyPressed();
---- a/plugin/backend.cpp
-+++ b/plugin/backend.cpp
-@@ -15,6 +15,7 @@
- #include <KService>
- #include <KServiceAction>
- #include <KWindowEffects>
-+#include <KWindowSystem>
- 
- #include <KApplicationTrader>
- #include <KIO/ApplicationLauncherJob>
-@@ -70,6 +71,10 @@
-                 }
-             });
- 
-+    // Relay the compositor's "show desktop" (Win+D) state changes to QML so the
-+    // blur behind the dock can be re-applied (KWin drops it in that transition).
-+    connect(KWindowSystem::self(), &KWindowSystem::showingDesktopChanged, this, &Backend::showingDesktopChanged);
-+
-     // Direct /dev/input keyboard monitoring (instant, no focus dependency)
-     initInputMonitor();
- 
-@@ -295,6 +300,11 @@
- 
- // --- End Meta Key Detection ---
- 
-+bool Backend::isShowingDesktop() const
-+{
-+    return KWindowSystem::showingDesktop();
-+}
-+
- void Backend::setBlurBehind(QWindow *window, bool enable, int x, int y, int w, int h, int radius)
- {
-     if (!window) {

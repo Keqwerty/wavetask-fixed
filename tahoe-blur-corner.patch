@@ -1,0 +1,37 @@
+Match the dock blur mask corner radius to the skin background in the Tahoe skins.
+
+The blur region is rounded using `blurRadius`, which is NOT the blur strength
+(that is a global KWin setting) but only the corner rounding of the mask fed to
+KWindowEffects::enableBlurBehind. Both Tahoe skins used blurRadius = 24 while the
+bg*.png background has a corner radius of ~16px, so the frosted region bulged ~8px
+past the (semi-transparent) rounded background at every corner and showed up as a
+bright, unblurred-tinted "nub" poking out of the dock corners over the wallpaper.
+
+Set blurRadius = 16 so the blur mask corners coincide with the background corners:
+nothing pokes out, and the corners stay blurred (matching, not smaller, so the
+translucent corner never reveals a sharp wallpaper edge).
+
+The trailing tabs after the file names in the --- / +++ lines are required so that
+patch(1) does not truncate the "Tahoe Dark" path at the space.
+--- a/package/contents/skins/Tahoe Dark/Config.qml	
++++ b/package/contents/skins/Tahoe Dark/Config.qml	
+@@ -8,7 +8,7 @@ QtObject {
+     property string imageRight: "bgr.png"
+     property string imagetask: "tasks.svgz"
+     property bool blur: true
+-    property int blurRadius: 24
++    property int blurRadius: 16
+     property int positionTaskIndicator: 9
+     property int leftMargin: 20
+     property int topMargin: 20
+--- a/package/contents/skins/Tahoe/Config.qml	
++++ b/package/contents/skins/Tahoe/Config.qml	
+@@ -8,7 +8,7 @@ QtObject {
+     property string imageRight: "bgr.png"
+     property string imagetask: "tasks.svgz"
+     property bool blur: true
+-    property int blurRadius: 24
++    property int blurRadius: 16
+     property int positionTaskIndicator: 9
+     property int leftMargin: 20
+     property int topMargin: 20
