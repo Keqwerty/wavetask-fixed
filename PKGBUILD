@@ -48,11 +48,13 @@ source=(
   "$_pkgsrc::git+$url.git"
   'blur-permanent.patch'
   'tahoe-blur-corner.patch'
+  'macos-frame.patch'
 )
 sha256sums=(
   'SKIP'
   '38fc4eb35400044845902082f3d8c11b98f9a6901f8e423611a967142dfb44d3'
   '947439591bf41860098531a915d098323cb1672d56da5bea523184a4b73105e2'
+  'e0275eea810ed016e3777e3e0344df4bcbae872e03b9d88594d96207f733a642'
 )
 
 options=('!debug')
@@ -68,6 +70,8 @@ prepare() {
   patch -p1 < "$srcdir/blur-permanent.patch"
   # Redondear un poco más la máscara de blur para que no sobresalga del fondo.
   patch -p1 < "$srcdir/tahoe-blur-corner.patch"
+  # Marco vectorial opcional estilo macOS (Rectangle), activable por skin.
+  patch -p1 < "$srcdir/macos-frame.patch"
   # Skin extra "Tahoe Blur": blur nativo de KWin sin imagen de fondo. Son
   # archivos nuevos, así que se copian desde el repo (no es un parche).
   cp -a "$startdir/skins/Tahoe Blur" package/contents/skins/

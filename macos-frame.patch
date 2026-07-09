@@ -1,0 +1,64 @@
+Add an optional vector "frame" to the dock (macOS-style), no background image.
+
+Skins can enable a rounded outline drawn with a QML Rectangle overlaid on the
+dock. Its corner radius defaults to the blur radius, so the outline follows the
+edge of KWin's native blur region by construction (same blurRadius), and it
+scales with the dock (icon count / zoom) like the rest of dockBackground.
+
+The frame is opt-in per skin via new, all-optional Config.qml properties, so
+existing skins are unaffected:
+  frame        : bool   -- draw the outline
+  frameColor   : color  -- outline color (default #59ffffff)
+  frameFill    : color  -- interior tint over the blur (default transparent)
+  frameBorder  : int    -- outline width in px (default 1)
+  frameRadius  : int    -- corner radius (default = blurRadius)
+diff --git a/package/contents/ui/main.qml b/package/contents/ui/main.qml
+index 6208228..34c29df 100644
+--- a/package/contents/ui/main.qml
++++ b/package/contents/ui/main.qml
+@@ -180,7 +180,15 @@ PlasmoidItem {
+                   outLeft: config.outsideLeftMargin,
+                   outTop: config.outsideTopMargin + tasks.topoutimage,
+                   outRight: config.outsideRightMargin,
+-                  outBottom: config.outsideBottomMargin
++                  outBottom: config.outsideBottomMargin,
++                  // Marco vectorial opcional estilo macOS (sin imagen). Todos los
++                  // campos son opcionales: si el skin no los define quedan como
++                  // undefined y el Rectangle usa sus valores por defecto.
++                  frame: config.frame === true,
++                  frameColor: config.frameColor,
++                  frameFill: config.frameFill,
++                  frameBorder: config.frameBorder,
++                  frameRadius: config.frameRadius
+               };
+ 
+               console.log("EXITO: Skin '" + skinName + "' cargada. Imagen: " + tasks.skinParams.image);
+@@ -844,6 +852,28 @@ PlasmoidItem {
+                 verticalTileMode: BorderImage.Stretch
+                 z: -1
+ 
++                // Marco vectorial estilo macOS (sin imagen): un rectángulo
++                // redondeado con un filo claro fino sobre el blur nativo de KWin.
++                // El radio coincide por construcción con el de la región de blur
++                // (mismo blurRadius), así que el filo sigue el borde difuminado.
++                // Se dibuja sólo si el skin activa "frame"; el resto de skins no
++                // se ven afectados. Estilo configurable desde el Config.qml del
++                // skin (frameColor / frameFill / frameBorder / frameRadius).
++                Rectangle {
++                    id: dockFrame
++                    anchors.fill: parent
++                    visible: tasks.skinParams.frame === true
++                    antialiasing: true
++                    color: tasks.skinParams.frameFill || "transparent"
++                    radius: (tasks.skinParams.frameRadius !== undefined
++                             && tasks.skinParams.frameRadius !== null)
++                            ? tasks.skinParams.frameRadius
++                            : dockBackground.blurRadius
++                    border.width: (tasks.skinParams.frameBorder !== undefined
++                                   && tasks.skinParams.frameBorder !== null)
++                                  ? tasks.skinParams.frameBorder : 1
++                    border.color: tasks.skinParams.frameColor || "#59ffffff"
++                }
+ 
+                 // --- INTEGRACIÓN DEL BLUR ---
+ 

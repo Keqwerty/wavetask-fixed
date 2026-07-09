@@ -14,6 +14,15 @@ QtObject {
     property string imagetask: "tasks.svgz"
     property bool blur: true
     property int blurRadius: 32
+
+    // Marco vectorial estilo macOS (sin imagen): filo claro fino + un tinte
+    // interior muy sutil sobre el blur. El radio se hereda de blurRadius, así
+    // que el filo sigue exactamente el borde de la región difuminada.
+    property bool frame: true
+    property color frameColor: "#5effffff"   // ~37% blanco: filo claro
+    property color frameFill: "#1fffffff"    // ~12% blanco: panel translúcido
+    property int frameBorder: 1
+
     property int positionTaskIndicator: 9
     property int leftMargin: 20
     property int topMargin: 20
