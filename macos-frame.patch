@@ -11,21 +11,27 @@ skins are unaffected:
   frameFill    : color  -- interior tint over the blur (default transparent)
   frameBorder  : int    -- outline width in px (default 1)
   frameRadius  : int    -- corner radius (default = blurRadius)
+  blurInset    : int    -- shrink the blur region inwards (default 0)
 
-For the "Tahoe Blur" skin the corner radius and the panel tint (its brightness)
-are exposed in the plasmoid settings and applied live:
-  * config/main.xml       : tahoeFrameRadius / tahoeTintStrength / tahoeTintDark.
-  * ConfigAppearance.qml   : radius + tint sliders and a dark-tint checkbox,
-                             shown only when the "Tahoe Blur" skin is selected.
-  * main.qml               : loadSkinConfig() overrides blurRadius/frameRadius/
-                             frameFill from those keys for that skin; the config
-                             signals re-run loadSkinConfig(); onBlurRadiusChanged
-                             re-applies the blur region so the shape updates live.
+blurInset pulls the blur region in and lowers its radius by the same amount, so
+it stays concentric with the frame; KWin's blur has a soft edge that bleeds a
+few px past the mask, and the inset keeps that edge under the frame outline.
+
+For the "Tahoe Blur" skin the corner radius, the panel tint (its brightness) and
+the blur inset are exposed in the plasmoid settings and applied live:
+  * config/main.xml      : tahoeFrameRadius / tahoeTintStrength / tahoeTintDark /
+                           tahoeBlurInset.
+  * ConfigAppearance.qml  : radius + tint + inset sliders and a dark-tint
+                            checkbox, shown only when "Tahoe Blur" is selected.
+  * main.qml              : loadSkinConfig() overrides blurRadius/frameRadius/
+                            frameFill/blurInset from those keys for that skin; the
+                            config signals re-run loadSkinConfig(); the blur region
+                            is re-applied on radius/inset changes so it updates live.
 diff --git a/package/contents/config/main.xml b/package/contents/config/main.xml
-index 7b4f6fe..068e8cc 100644
+index 7b4f6fe..0654049 100644
 --- a/package/contents/config/main.xml
 +++ b/package/contents/config/main.xml
-@@ -181,6 +181,18 @@
+@@ -181,6 +181,22 @@
        <label>Whether holding the Meta/Win key should display task index numbers above each icon.</label>
        <default>true</default>
      </entry>
@@ -41,14 +47,18 @@ index 7b4f6fe..068e8cc 100644
 +      <label>Tahoe Blur: tint the panel dark instead of light.</label>
 +      <default>false</default>
 +    </entry>
++    <entry name="tahoeBlurInset" type="Int">
++      <label>Tahoe Blur: shrink the blur region inwards (px) so its soft edge stays under the frame.</label>
++      <default>2</default>
++    </entry>
    </group>
  
  </kcfg>
 diff --git a/package/contents/ui/ConfigAppearance.qml b/package/contents/ui/ConfigAppearance.qml
-index 66d1bd3..89d11b9 100644
+index 66d1bd3..2f9e44e 100644
 --- a/package/contents/ui/ConfigAppearance.qml
 +++ b/package/contents/ui/ConfigAppearance.qml
-@@ -46,6 +46,11 @@ KCMUtils.SimpleKCM {
+@@ -46,6 +46,12 @@ KCMUtils.SimpleKCM {
      property string cfg_skinName: Plasmoid.configuration.skinName
      property alias cfg_showReflection: showReflection.checked
  
@@ -56,11 +66,12 @@ index 66d1bd3..89d11b9 100644
 +    property alias cfg_tahoeFrameRadius: tahoeRadiusSlider.value
 +    property alias cfg_tahoeTintStrength: tahoeTintSlider.value
 +    property alias cfg_tahoeTintDark: tahoeTintDark.checked
++    property alias cfg_tahoeBlurInset: tahoeInsetSlider.value
 +
      property alias cfg_cairoPenguinEnabled: cairoPenguinEnabled.checked
  
      Component.onCompleted: {
-@@ -116,6 +121,54 @@ KCMUtils.SimpleKCM {
+@@ -116,6 +122,71 @@ KCMUtils.SimpleKCM {
              // Intentar sincronizar al completar por si el disco es ultra rápido
              Component.onCompleted: syncValue()
          }
@@ -112,14 +123,31 @@ index 66d1bd3..89d11b9 100644
 +            text: "Dark tint (dim the panel)"
 +        }
 +
++        RowLayout {
++            Kirigami.FormData.label: "Blur inset:"
++            visible: root.cfg_skinName === "Tahoe Blur"
++            spacing: Kirigami.Units.smallSpacing
++
++            QQC2.Slider {
++                id: tahoeInsetSlider
++                Layout.fillWidth: true
++                from: 0
++                to: 12
++                stepSize: 1
++            }
++            QQC2.Label {
++                text: Math.round(tahoeInsetSlider.value) + " px"
++            }
++        }
++
          // --- Selector de Tamaño de Iconos ---
          RowLayout {
              Kirigami.FormData.label: "Icon Size:"
 diff --git a/package/contents/ui/main.qml b/package/contents/ui/main.qml
-index 60cde2f..97799c7 100644
+index 60cde2f..c43b7bb 100644
 --- a/package/contents/ui/main.qml
 +++ b/package/contents/ui/main.qml
-@@ -162,6 +162,23 @@ PlasmoidItem {
+@@ -162,6 +162,26 @@ PlasmoidItem {
            if (config) {
                let skinFolderUrl = Qt.resolvedUrl("../skins/" + skinName + "/").toString();
  
@@ -127,10 +155,12 @@ index 60cde2f..97799c7 100644
 +              let blurRadiusVal = config.blurRadius;
 +              let frameRadiusVal = config.frameRadius;
 +              let frameFillVal = config.frameFill;
++              let blurInsetVal = config.blurInset;
 +
 +              // Para el skin "Tahoe Blur" estos valores se controlan desde los
-+              // ajustes del plasmoide (radio de esquinas y tono/brillo del panel),
-+              // así el usuario los cambia en vivo sin tocar el Config.qml.
++              // ajustes del plasmoide (radio de esquinas, tono/brillo del panel y
++              // cuánto se mete el blur), así el usuario los cambia en vivo sin
++              // tocar el Config.qml.
 +              if (skinName === "Tahoe Blur") {
 +                  const r = Plasmoid.configuration.tahoeFrameRadius;
 +                  blurRadiusVal = r;
@@ -138,12 +168,13 @@ index 60cde2f..97799c7 100644
 +                  const a = Math.max(0, Math.min(100, Plasmoid.configuration.tahoeTintStrength)) / 100;
 +                  const v = Plasmoid.configuration.tahoeTintDark ? 0 : 1;
 +                  frameFillVal = Qt.rgba(v, v, v, a);
++                  blurInsetVal = Plasmoid.configuration.tahoeBlurInset;
 +              }
 +
                // Actualizamos skinParams de forma reactiva
                tasks.skinParams = {
                    imageTop: skinFolderUrl + config.imageTop,
-@@ -171,7 +188,7 @@ PlasmoidItem {
+@@ -171,7 +191,7 @@ PlasmoidItem {
                    image: skinFolderUrl + config.image,
                    imagetask: skinFolderUrl + config.imagetask,
                    blur: config.blur,
@@ -152,7 +183,7 @@ index 60cde2f..97799c7 100644
                    positionTaskIndicator: config.positionTaskIndicator,
                    left: config.leftMargin,
                    top: config.topMargin,
-@@ -180,7 +197,15 @@ PlasmoidItem {
+@@ -180,7 +200,16 @@ PlasmoidItem {
                    outLeft: config.outsideLeftMargin,
                    outTop: config.outsideTopMargin + tasks.topoutimage,
                    outRight: config.outsideRightMargin,
@@ -165,11 +196,12 @@ index 60cde2f..97799c7 100644
 +                  frameColor: config.frameColor,
 +                  frameFill: frameFillVal,
 +                  frameBorder: config.frameBorder,
-+                  frameRadius: frameRadiusVal
++                  frameRadius: frameRadiusVal,
++                  blurInset: blurInsetVal
                };
  
                console.log("EXITO: Skin '" + skinName + "' cargada. Imagen: " + tasks.skinParams.image);
-@@ -507,6 +532,12 @@ PlasmoidItem {
+@@ -507,6 +536,13 @@ PlasmoidItem {
                  loadSkinConfig();
              }
  
@@ -178,11 +210,12 @@ index 60cde2f..97799c7 100644
 +            function onTahoeFrameRadiusChanged() { loadSkinConfig(); }
 +            function onTahoeTintStrengthChanged() { loadSkinConfig(); }
 +            function onTahoeTintDarkChanged() { loadSkinConfig(); }
++            function onTahoeBlurInsetChanged() { loadSkinConfig(); }
 +
              function onLaunchersChanged(): void {
                  tasksModel.launcherList = Plasmoid.configuration.launchers
              }
-@@ -844,6 +875,28 @@ PlasmoidItem {
+@@ -844,12 +880,42 @@ PlasmoidItem {
                  verticalTileMode: BorderImage.Stretch
                  z: -1
  
@@ -211,7 +244,34 @@ index 60cde2f..97799c7 100644
  
                  // --- INTEGRACIÓN DEL BLUR ---
  
-@@ -901,6 +954,11 @@ PlasmoidItem {
+                 // Radio de blur
+                 readonly property int blurRadius: tasks.skinParams.blurRadius || 24
+ 
++                // Cuánto se encoge la región de blur hacia dentro respecto al
++                // marco. El blur de KWin es una convolución cuyo borde difuso
++                // sobresale unos píxeles del recorte; metiéndolo un poco, ese
++                // borde queda por debajo del filo del marco y no asoma. 0 = igual
++                // que el marco (comportamiento anterior).
++                readonly property int blurInset: tasks.skinParams.blurInset || 0
++                onBlurInsetChanged: updateBlur(true)
++
+                 // (Re)aplica la región de blur del dock.
+                 // Con recover=true, además fuerza a KWin a releer la región y a
+                 // repintarla; esto es necesario para restaurar el blur cuando KWin
+@@ -875,7 +941,11 @@ PlasmoidItem {
+                         backend.setBlurBehind(win, false, 0, 0, 0, 0, 0);
+                     }
+ 
+-                    backend.setBlurBehind(win, true, pos.x, pos.y, width, height, blurRadius);
++                    // Metemos la región "k" px hacia dentro y reducimos el radio en
++                    // la misma cantidad, de modo que quede concéntrica con el marco
++                    // (inset uniforme por los cuatro lados y esquinas).
++                    const k = Math.max(0, Math.min(blurInset, Math.floor(Math.min(width, height) / 2) - 1));
++                    backend.setBlurBehind(win, true, pos.x + k, pos.y + k, width - 2 * k, height - 2 * k, Math.max(0, blurRadius - k));
+ 
+                     if (win.requestUpdate)
+                         win.requestUpdate();
+@@ -901,6 +971,11 @@ PlasmoidItem {
  
                  onWindowChanged: scheduleBlurUpdate()
  
