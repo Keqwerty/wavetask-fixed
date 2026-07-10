@@ -5,7 +5,6 @@ pkgbase = wavetask-git
 	url = https://github.com/vickoc911/org.vicko.wavetask
 	arch = x86_64
 	license = GPL-3.0-only
-	makedepends = git
 	makedepends = cmake
 	makedepends = extra-cmake-modules
 	makedepends = gcc
@@ -33,15 +32,5 @@ pkgbase = wavetask-git
 	provides = wavetask=1.4.r4.g0ba7241
 	conflicts = wavetask
 	options = !debug
-	source = wavetask::git+https://github.com/vickoc911/org.vicko.wavetask.git#commit=0ba7241601879f612a5056dc8dac4c327d8526ee
-	source = blur-permanent.patch
-	source = tahoe-blur-corner.patch
-	source = macos-frame.patch
-	source = dock-resize-sync.patch
-	sha256sums = SKIP
-	sha256sums = 38fc4eb35400044845902082f3d8c11b98f9a6901f8e423611a967142dfb44d3
-	sha256sums = 947439591bf41860098531a915d098323cb1672d56da5bea523184a4b73105e2
-	sha256sums = fb1a1a9ec2022c048e1df3cec3f7e1be03e340e82686eb4a64bf5d5733575705
-	sha256sums = 9576e08b86d32d7ad0a4ac269d39416734d42cd2222901c64463a972365e57b6
 
 pkgname = wavetask-git

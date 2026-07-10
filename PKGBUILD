@@ -33,7 +33,6 @@ depends=(
 )
 
 makedepends=(
-  'git'
   'cmake'
   'extra-cmake-modules'
   'gcc'
@@ -44,54 +43,28 @@ conflicts=("$_pkgname")
 provides=("$_pkgname=$pkgver")
 
 _pkgsrc="$_pkgname"
-# Commit fijado del upstream. Los parches de abajo están generados contra este
-# árbol exacto; clonar por commit evita que un cambio futuro del upstream rompa
-# su aplicación en prepare().
-_commit='0ba7241601879f612a5056dc8dac4c327d8526ee'
-source=(
-  "$_pkgsrc::git+$url.git#commit=$_commit"
-  'blur-permanent.patch'
-  'tahoe-blur-corner.patch'
-  'macos-frame.patch'
-  'dock-resize-sync.patch'
-)
-sha256sums=(
-  'SKIP'
-  '38fc4eb35400044845902082f3d8c11b98f9a6901f8e423611a967142dfb44d3'
-  '947439591bf41860098531a915d098323cb1672d56da5bea523184a4b73105e2'
-  'fb1a1a9ec2022c048e1df3cec3f7e1be03e340e82686eb4a64bf5d5733575705'
-  '9576e08b86d32d7ad0a4ac269d39416734d42cd2222901c64463a972365e57b6'
-)
+# El árbol de fuentes va incrustado en el repo (wavetask-source/): base upstream
+# 0ba7241 con todos los cambios ya aplicados —blur permanente, esquinas de la
+# máscara, marco vectorial estilo macOS, sincronización de tamaño del dock— y el
+# skin "macOS Dock". No se clona nada ni se aplican parches en tiempo de build.
+source=()
+sha256sums=()
 
 options=('!debug')
 
-pkgver() {
-  cd "$_pkgsrc"
-  git describe --long --tags --abbrev=7 | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g'
-}
-
 prepare() {
-  cd "$_pkgsrc"
-  # Mantener el blur permanente en skins que lo habilitan (p. ej. Tahoe Dark).
-  patch -p1 < "$srcdir/blur-permanent.patch"
-  # Redondear un poco más la máscara de blur para que no sobresalga del fondo.
-  patch -p1 < "$srcdir/tahoe-blur-corner.patch"
-  # Marco vectorial opcional estilo macOS (Rectangle), activable por skin.
-  patch -p1 < "$srcdir/macos-frame.patch"
-  # Refrescar el fondo/marco en cuanto aparece el icono de una tarea nueva.
-  patch -p1 < "$srcdir/dock-resize-sync.patch"
-  # Skin extra "Tahoe Blur": blur nativo de KWin sin imagen de fondo. Son
-  # archivos nuevos, así que se copian desde el repo (no es un parche).
-  cp -a "$startdir/skins/Tahoe Blur" package/contents/skins/
+  # Copiar el árbol de fuentes ya parcheado al directorio de compilación.
+  rm -rf "$srcdir/$_pkgsrc"
+  cp -a "$startdir/wavetask-source" "$srcdir/$_pkgsrc"
 }
 
 build() {
-  cd "$_pkgsrc"
+  cd "$srcdir/$_pkgsrc"
   cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
   cmake --build build -j$(nproc)
 }
 
 package() {
-  cd "$_pkgsrc"
+  cd "$srcdir/$_pkgsrc"
   DESTDIR="$pkgdir" cmake --install build
 }
