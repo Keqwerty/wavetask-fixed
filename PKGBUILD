@@ -2,11 +2,11 @@
 
 _pkgname=wavetask
 pkgname="$_pkgname-git"
-pkgver=1.4.r4.g0ba7241
+pkgver=1.4.r16.g68318fd
 pkgrel=1
-pkgdesc="A Plasma 6 task manager plasmoid with zoom effect"
+pkgdesc="A Plasma 6 task manager plasmoid with zoom effect (macOS Dock skin)"
 arch=('x86_64')
-url="https://github.com/vickoc911/org.vicko.wavetask"
+url="https://github.com/Keqwerty/wavetask-fixed"
 license=('GPL-3.0-only')
 
 depends=(
@@ -33,6 +33,7 @@ depends=(
 )
 
 makedepends=(
+  'git'
   'cmake'
   'extra-cmake-modules'
   'gcc'
@@ -43,28 +44,27 @@ conflicts=("$_pkgname")
 provides=("$_pkgname=$pkgver")
 
 _pkgsrc="$_pkgname"
-# El árbol de fuentes va incrustado en el repo (wavetask-source/): base upstream
-# 0ba7241 con todos los cambios ya aplicados —blur permanente, esquinas de la
-# máscara, marco vectorial estilo macOS, sincronización de tamaño del dock— y el
-# skin "macOS Dock". No se clona nada ni se aplican parches en tiempo de build.
-source=()
-sha256sums=()
+# Se clona este repositorio de empaquetado; el árbol de fuentes del plasmoide,
+# ya con todos los cambios aplicados (blur permanente, esquinas de la máscara,
+# marco vectorial estilo macOS, sincronización de tamaño del dock) y el skin
+# "macOS Dock", vive dentro del clon en wavetask-source/.
+source=("$_pkgsrc::git+$url.git")
+sha256sums=('SKIP')
 
 options=('!debug')
 
-prepare() {
-  # Copiar el árbol de fuentes ya parcheado al directorio de compilación.
-  rm -rf "$srcdir/$_pkgsrc"
-  cp -a "$startdir/wavetask-source" "$srcdir/$_pkgsrc"
+pkgver() {
+  cd "$_pkgsrc"
+  printf '1.4.r%s.g%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
 }
 
 build() {
-  cd "$srcdir/$_pkgsrc"
+  cd "$_pkgsrc/wavetask-source"
   cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
   cmake --build build -j$(nproc)
 }
 
 package() {
-  cd "$srcdir/$_pkgsrc"
+  cd "$_pkgsrc/wavetask-source"
   DESTDIR="$pkgdir" cmake --install build
 }
