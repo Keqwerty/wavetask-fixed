@@ -44,8 +44,12 @@ conflicts=("$_pkgname")
 provides=("$_pkgname=$pkgver")
 
 _pkgsrc="$_pkgname"
+# Commit fijado del upstream. Los parches de abajo están generados contra este
+# árbol exacto; clonar por commit evita que un cambio futuro del upstream rompa
+# su aplicación en prepare().
+_commit='0ba7241601879f612a5056dc8dac4c327d8526ee'
 source=(
-  "$_pkgsrc::git+$url.git"
+  "$_pkgsrc::git+$url.git#commit=$_commit"
   'blur-permanent.patch'
   'tahoe-blur-corner.patch'
   'macos-frame.patch'

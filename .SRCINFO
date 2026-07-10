@@ -1,6 +1,6 @@
 pkgbase = wavetask-git
 	pkgdesc = A Plasma 6 task manager plasmoid with zoom effect
-	pkgver = 1.4.r3.gdbc7fae
+	pkgver = 1.4.r4.g0ba7241
 	pkgrel = 1
 	url = https://github.com/vickoc911/org.vicko.wavetask
 	arch = x86_64
@@ -30,10 +30,10 @@ pkgbase = wavetask-git
 	depends = kwin
 	depends = libepoxy
 	depends = libdrm
-	provides = wavetask=1.4.r3.gdbc7fae
+	provides = wavetask=1.4.r4.g0ba7241
 	conflicts = wavetask
 	options = !debug
-	source = wavetask::git+https://github.com/vickoc911/org.vicko.wavetask.git
+	source = wavetask::git+https://github.com/vickoc911/org.vicko.wavetask.git#commit=0ba7241601879f612a5056dc8dac4c327d8526ee
 	source = blur-permanent.patch
 	source = tahoe-blur-corner.patch
 	source = macos-frame.patch
