@@ -1,4 +1,4 @@
-# Maintainer: Issa M. Omais <me0@ioplus.dev>
+# Maintainer: Keqwerty <keqwerty@yahoo.com>
 
 _pkgname=wavetask
 pkgname="$_pkgname-git"

@@ -34,7 +34,7 @@ If you need to install it on Plasma 6.5 or lower, I recommend you do it from her
   ```
 </details>
 <details>
-  <summary>Arch Linux (AUR) (maintained by https://aur.archlinux.org/account/ioplus)</summary>
+  <summary>Arch Linux</summary>
   <br>
 
 Using an AUR helper (paru, yay, etc.):
