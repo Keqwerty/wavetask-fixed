@@ -49,12 +49,14 @@ source=(
   'blur-permanent.patch'
   'tahoe-blur-corner.patch'
   'macos-frame.patch'
+  'dock-resize-sync.patch'
 )
 sha256sums=(
   'SKIP'
   '38fc4eb35400044845902082f3d8c11b98f9a6901f8e423611a967142dfb44d3'
   '947439591bf41860098531a915d098323cb1672d56da5bea523184a4b73105e2'
   'fb1a1a9ec2022c048e1df3cec3f7e1be03e340e82686eb4a64bf5d5733575705'
+  '9576e08b86d32d7ad0a4ac269d39416734d42cd2222901c64463a972365e57b6'
 )
 
 options=('!debug')
@@ -72,6 +74,8 @@ prepare() {
   patch -p1 < "$srcdir/tahoe-blur-corner.patch"
   # Marco vectorial opcional estilo macOS (Rectangle), activable por skin.
   patch -p1 < "$srcdir/macos-frame.patch"
+  # Refrescar el fondo/marco en cuanto aparece el icono de una tarea nueva.
+  patch -p1 < "$srcdir/dock-resize-sync.patch"
   # Skin extra "Tahoe Blur": blur nativo de KWin sin imagen de fondo. Son
   # archivos nuevos, así que se copian desde el repo (no es un parche).
   cp -a "$startdir/skins/Tahoe Blur" package/contents/skins/

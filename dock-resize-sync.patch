@@ -1,0 +1,53 @@
+Refresh the dock background/frame the instant a new task's icon appears.
+
+The dock's outer margins derive from taskList.centerOffset, which is
+(availableSize - iconsTotalSize) / 2. availableSize (taskList.width) is driven
+by taskRepeater.count and grows the moment a task is added, but iconsTotalSize
+sums the widths of the *live* delegates via itemAt(i). Its binding only re-runs
+on count changes, and at that point the new delegate often does not exist yet, so
+itemAt(newIndex) is null: the new width is never read, the binding gains no
+dependency on it, and iconsTotalSize stays short once the delegate does appear.
+
+centerOffset therefore inflates (bigger availableSize minus a stale, smaller
+iconsTotalSize), the background margins inflate with it, and the background and
+its macOS-style frame come out too narrow -- the freshly opened icon pokes out
+past them until some unrelated re-evaluation (a hover/zoom, another model change)
+finally forces iconsTotalSize to recompute.
+
+Fix: give the Repeater an itemRevision counter bumped in onItemAdded/onItemRemoved
+(which fire once the delegate genuinely exists / is gone) and read it inside
+iconsTotalSize, so the sum re-evaluates with the real width as soon as the new
+icon is live. The existing onWidthChanged blur trigger then reapplies the region.
+--- a/package/contents/ui/main.qml
++++ b/package/contents/ui/main.qml
+@@ -1120,6 +1120,15 @@
+                 property real contentSize: Math.ceil(baseContentSize + zoomExtraSize + spacing * 4)
+ 
+                readonly property real iconsTotalSize: {
++                   // Dependencia explícita en la revisión del Repeater: al añadir
++                   // un icono, "count" cambia antes de que el delegado exista, así
++                   // que itemAt(nuevoÍndice) es null y su ancho nunca se lee => el
++                   // binding no vuelve a evaluarse cuando el delegado aparece y esta
++                   // suma se queda corta (el fondo/marco no cubren el icono nuevo
++                   // hasta que otro evento fuerza el recálculo). itemRevision se
++                   // incrementa en onItemAdded/onItemRemoved, cuando el delegado ya
++                   // existe, forzando aquí una reevaluación con el ancho real.
++                   let _rev = taskRepeater.itemRevision;
+                    let total = 0;
+ 
+                    for (let i = 0; i < taskRepeater.count; ++i) {
+@@ -1225,6 +1234,14 @@
+                     id: taskRepeater
+                     model: tasksModel
+ 
++                    // Se incrementa cada vez que un delegado se crea o se destruye,
++                    // es decir, cuando itemAt() ya devuelve (o ya no devuelve) el
++                    // item. iconsTotalSize lo lee para recalcular con el ancho real
++                    // en cuanto el icono nuevo existe, sin esperar a otro evento.
++                    property int itemRevision: 0
++                    onItemAdded: taskRepeater.itemRevision++
++                    onItemRemoved: taskRepeater.itemRevision++
++
+                     delegate: Task {
+                         id: taskItem
+                         tasksRoot: tasks
