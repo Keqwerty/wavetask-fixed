@@ -13,7 +13,7 @@
         "EnabledByDefault": true,
         "Icon": "preferences-system-windows",
         "Id": "org.vicko.wavetask",
-        "License": "GPL-2.0+",
+        "License": "GPL-3.0-or-later",
         "Name": "Wave Task Manager",
         "Website": "https://userbase.kde.org/Plasma/Tasks"
     },
