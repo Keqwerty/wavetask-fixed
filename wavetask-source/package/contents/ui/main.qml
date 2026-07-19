@@ -1256,6 +1256,29 @@ PlasmoidItem {
                     }
                 }
 
+                // DEBUG: estado del zoom mientras el cursor está en el dock. Nos dice
+                // qué "compuerta" apaga el zoom (insideDock / smoothMouse / entryProgress).
+                Timer {
+                    id: dbgZoomTimer
+                    interval: 300
+                    repeat: true
+                    running: dockHoverHandler.hovered || taskList.insideDock
+                    onTriggered: {
+                        const n = taskRepeater.count;
+                        const first = n > 0 ? taskRepeater.itemAt(0) : null;
+                        const last = n > 1 ? taskRepeater.itemAt(n - 1) : null;
+                        console.log("WT-DBG zoom"
+                            + " hovered=" + dockHoverHandler.hovered
+                            + " insideDock=" + taskList.insideDock
+                            + " smoothMouse=" + Math.round(taskList.smoothMouse)
+                            + " _zoom=" + (Plasmoid.configuration.magnification || 0)
+                            + " zf0=" + (first ? first.zoomFactor.toFixed(2) : "n/a")
+                            + " entry0=" + (first ? first.entryProgress.toFixed(2) : "n/a")
+                            + " zfLast=" + (last ? last.zoomFactor.toFixed(2) : "n/a")
+                            + " taskListW=" + Math.round(taskList.width));
+                    }
+                }
+
                 // DEBUG: re-mide la geometría un rato después de añadirse una app,
                 // para comparar con el instante del "task-added" y ver el transitorio.
                 Timer {
