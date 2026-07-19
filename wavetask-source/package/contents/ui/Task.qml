@@ -151,10 +151,17 @@ PlasmaCore.ToolTipArea {
 
     property real entryProgress: (dockRef && dockRef.insideDock) ? 1.0 : 0.0
 
+    // Easing direccional: la ENTRADA usa OutCubic (aparición rápida y con carácter),
+    // pero la SALIDA usaba esa misma curva "front-loaded", que arranca el colapso de
+    // golpe y se percibe entrecortado. Al salir usamos InOutQuad (arranque suave y
+    // asentamiento suave), un poco más largo, para que el zoom se relaje en el sitio
+    // igual de fluido que cuando el cursor deja de tocar un icono por el centro.
     Behavior on entryProgress {
         NumberAnimation {
-            duration: 200
-            easing.type: Easing.OutCubic
+            duration: (task.dockRef && task.dockRef.insideDock) ? 200 : 230
+            easing.type: (task.dockRef && task.dockRef.insideDock)
+                         ? Easing.OutCubic
+                         : Easing.InOutQuad
         }
     }
 
