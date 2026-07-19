@@ -1223,7 +1223,12 @@ PlasmoidItem {
                             (mousePos - taskList.smoothMouse) * 0.3
                         }
 
+                        // Un cambio de punto significa que el cursor SÍ está dentro:
+                        // cancelamos cualquier salida pendiente. Así, si hovered se
+                        // cae un instante por el reflow del GridLayout durante el
+                        // zoom, no se colapsa el foco mientras el ratón se mueve.
                         taskList.insideDock = true
+                        exitTimer.stop()
                     }
 
                     onHoveredChanged: {
@@ -1270,7 +1275,12 @@ PlasmoidItem {
 
                 Timer {
                     id: exitTimer
-                    interval: 40
+                    // Histéresis de salida: antes eran 40 ms, demasiado poco frente a
+                    // los micro-parpadeos de "hovered" que provoca el reflow del
+                    // GridLayout durante el zoom. Con el ratón en movimiento
+                    // onPointChanged lo detiene, así que esto sólo dispara cuando el
+                    // cursor de verdad ha salido (ya no llegan puntos).
+                    interval: 200
                     repeat: false
                     onTriggered: {
                         if (!dockHoverHandler.hovered) {

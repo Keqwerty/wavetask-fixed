@@ -113,19 +113,28 @@ PlasmaCore.ToolTipArea {
 
         if (mousePos < 0) return 1.0;
 
-        // Tamaño total SIN zoom
-        let totalSize = tasksRoot.taskRepeater.count * _baseSize;
+        // Espaciado real entre iconos: hay que incluirlo o el centro calculado
+        // se desvía cada vez más a la izquierda según crece el índice (el error
+        // se acumula), y los iconos de la derecha apenas hacen zoom aunque el
+        // cursor esté justo encima. Usamos las posiciones EN REPOSO (tamaño base
+        // + espaciado), que son estables y no dependen de los anchos ya ampliados,
+        // para no realimentar el layout y evitar oscilaciones.
+        let spacing = tasksRoot.taskList.spacing;
+        let count = tasksRoot.taskRepeater.count;
+
+        // Tamaño total SIN zoom, con el espaciado incluido
+        let totalSize = count * _baseSize + Math.max(0, count - 1) * spacing;
 
         // Área disponible según orientación
         let availableSize = tasks.vertical
         ? tasksRoot.taskList.height
         : tasksRoot.taskList.width;
 
-        // Offset centrado
+        // Offset centrado (coincide con taskList.centerOffset en reposo)
         let centerOffset = (availableSize - totalSize) / 2;
 
-        // Centro del icono actual
-        let iconCenter = centerOffset + (index * _baseSize) + (_baseSize / 2);
+        // Centro del icono actual, con paso = base + espaciado
+        let iconCenter = centerOffset + index * (_baseSize + spacing) + (_baseSize / 2);
 
         // Distancia mouse-icono
         let distance = Math.abs(mousePos - iconCenter);
