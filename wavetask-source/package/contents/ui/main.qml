@@ -248,20 +248,7 @@ PlasmoidItem {
         if (shouldShrinkToZero) {
             return Kirigami.Units.gridUnit; // For edit mode
         }
-        if (vertical) {
-            return 0;
-        }
-        // Igualamos el mínimo al ancho real del contenido (contentSize, el mismo
-        // que preferredWidth). Si el mínimo se queda en "una icono" como antes,
-        // plasmashell puede dibujar el plasmoide más estrecho que su contenido
-        // mientras el panel "fit content" reajusta su longitud tras abrirse una
-        // app: en ese transitorio la ventana del panel termina en el borde de la
-        // última icono y el relleno derecho de contentSize queda fuera de la
-        // ventana -> justo pasado el icono nuevo no llega el hover (el foco/zoom
-        // se cae) hasta que el panel acaba de crecer. Como taskList está anclado
-        // a la izquierda, sólo se pierde por la derecha. Con min == contentSize
-        // el panel está obligado a reservar el ancho completo de inmediato.
-        return Math.max(LayoutMetrics.preferredMinWidth(), taskList.contentSize);
+        return vertical ? 0 : LayoutMetrics.preferredMinWidth();
     }
     Layout.minimumHeight: {
         if (shouldShrinkToZero) {
