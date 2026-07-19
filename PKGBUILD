@@ -2,12 +2,12 @@
 
 _pkgname=wavetask
 pkgname="$_pkgname-git"
-pkgver=1.4.r16.g68318fd
+pkgver=1.4.r21.g3e44fb0
 pkgrel=1
 pkgdesc="A Plasma 6 task manager plasmoid with zoom effect (macOS Dock skin)"
 arch=('x86_64')
 url="https://github.com/Keqwerty/wavetask-fixed"
-license=('GPL-3.0-only')
+license=('GPL-3.0-or-later')
 
 depends=(
   'qt6-base'

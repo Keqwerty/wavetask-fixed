@@ -1,10 +1,10 @@
 pkgbase = wavetask-git
 	pkgdesc = A Plasma 6 task manager plasmoid with zoom effect (macOS Dock skin)
-	pkgver = 1.4.r16.g68318fd
+	pkgver = 1.4.r21.g3e44fb0
 	pkgrel = 1
 	url = https://github.com/Keqwerty/wavetask-fixed
 	arch = x86_64
-	license = GPL-3.0-only
+	license = GPL-3.0-or-later
 	makedepends = git
 	makedepends = cmake
 	makedepends = extra-cmake-modules
@@ -30,7 +30,7 @@ pkgbase = wavetask-git
 	depends = kwin
 	depends = libepoxy
 	depends = libdrm
-	provides = wavetask=1.4.r16.g68318fd
+	provides = wavetask=1.4.r21.g3e44fb0
 	conflicts = wavetask
 	options = !debug
 	source = wavetask::git+https://github.com/Keqwerty/wavetask-fixed.git
