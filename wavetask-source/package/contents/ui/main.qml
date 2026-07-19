@@ -1309,10 +1309,12 @@ PlasmoidItem {
 
                 Timer {
                     id: exitTimer
-                    // Histéresis de salida: puentea los micro-parpadeos de "hovered"
-                    // del reflow del GridLayout (cada recuperación de hover cancela el
-                    // timer), pero corta rápido cuando el cursor sale de verdad.
-                    interval: 120
+                    // Histéresis de salida mínima (como el original). El anti-parpadeo
+                    // ya no depende de este intervalo: cada recuperación de hover (y cada
+                    // punto con hovered=true, ~cada frame al mover) cancela el timer, así
+                    // que 40 ms bastan para puentear un parpadeo de 1-2 frames y aun así
+                    // el zoom cae de inmediato al salir de verdad.
+                    interval: 40
                     repeat: false
                     onTriggered: {
                         if (!dockHoverHandler.hovered) {
