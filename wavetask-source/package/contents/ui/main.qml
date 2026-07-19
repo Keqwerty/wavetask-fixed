@@ -1204,15 +1204,8 @@ PlasmoidItem {
                 HoverHandler {
                     id: dockHoverHandler
 
-                    // DEBUG: última posición del puntero (en coords del plasmoide).
-                    property real _lastPointX: -1
-                    property real _lastPointY: -1
-
                     onPointChanged: {
                         let mappedPos = taskList.mapToItem(tasks, point.position.x, point.position.y)
-
-                        _lastPointX = mappedPos.x;
-                        _lastPointY = mappedPos.y;
 
                         let mousePos = tasks.vertical ? mappedPos.y : mappedPos.x
 
@@ -1243,67 +1236,8 @@ PlasmoidItem {
                             taskList.insideDock = true;
                             exitTimer.stop();
                         } else {
-                            // DEBUG: al perder el hover, volcamos la geometría para
-                            // ver si la ventana del panel es más estrecha que el
-                            // contenido (contentSize) y por cuánto, y dónde estaba el
-                            // puntero respecto al borde derecho del contenido.
-                            const win = tasks?.Window?.window;
-                            const lastIconRight = taskList.centerOffset + taskList.iconsTotalSize;
-                            console.log("WT-DBG hover-lost"
-                                + " ptrX=" + Math.round(dockHoverHandler._lastPointX)
-                                + " plasmoidW=" + Math.round(tasks.width)
-                                + " windowW=" + (win ? Math.round(win.width) : "n/a")
-                                + " contentSize=" + Math.round(taskList.contentSize)
-                                + " taskListW=" + Math.round(taskList.width)
-                                + " centerOffset=" + Math.round(taskList.centerOffset)
-                                + " iconsTotal=" + Math.round(taskList.iconsTotalSize)
-                                + " lastIconRight=" + Math.round(lastIconRight)
-                                + " count=" + taskRepeater.count);
                             exitTimer.restart();
                         }
-                    }
-                }
-
-                // DEBUG: estado del zoom mientras el cursor está en el dock. Nos dice
-                // qué "compuerta" apaga el zoom (insideDock / smoothMouse / entryProgress).
-                Timer {
-                    id: dbgZoomTimer
-                    interval: 300
-                    repeat: true
-                    running: dockHoverHandler.hovered || taskList.insideDock
-                    onTriggered: {
-                        const n = taskRepeater.count;
-                        const first = n > 0 ? taskRepeater.itemAt(0) : null;
-                        const last = n > 1 ? taskRepeater.itemAt(n - 1) : null;
-                        console.log("WT-DBG zoom"
-                            + " smoothMouse=" + Math.round(taskList.smoothMouse)
-                            + " _zoom=" + (Plasmoid.configuration.magnification || 0)
-                            + " iconSize=" + Plasmoid.configuration.iconSize
-                            + " tasksH=" + Math.round(tasks.height)
-                            + " | zf0=" + (first ? first.zoomFactor.toFixed(2) : "n/a")
-                            + " x0=" + (first ? Math.round(first.x) : "n/a")
-                            + " w0=" + (first ? Math.round(first.width) : "n/a")
-                            + " h0=" + (first ? Math.round(first.height) : "n/a")
-                            + " | zfLast=" + (last ? last.zoomFactor.toFixed(2) : "n/a")
-                            + " xLast=" + (last ? Math.round(last.x) : "n/a")
-                            + " wLast=" + (last ? Math.round(last.width) : "n/a"));
-                    }
-                }
-
-                // DEBUG: re-mide la geometría un rato después de añadirse una app,
-                // para comparar con el instante del "task-added" y ver el transitorio.
-                Timer {
-                    id: dbgSettleTimer
-                    interval: 1500
-                    repeat: false
-                    onTriggered: {
-                        const win = tasks?.Window?.window;
-                        console.log("WT-DBG settled(+1.5s)"
-                            + " plasmoidW=" + Math.round(tasks.width)
-                            + " windowW=" + (win ? Math.round(win.width) : "n/a")
-                            + " contentSize=" + Math.round(taskList.contentSize)
-                            + " taskListW=" + Math.round(taskList.width)
-                            + " count=" + taskRepeater.count);
                     }
                 }
 
@@ -1332,20 +1266,7 @@ PlasmoidItem {
                     // item. iconsTotalSize lo lee para recalcular con el ancho real
                     // en cuanto el icono nuevo existe, sin esperar a otro evento.
                     property int itemRevision: 0
-                    onItemAdded: {
-                        taskRepeater.itemRevision++;
-                        // DEBUG: geometría justo al añadirse una app, y de nuevo tras
-                        // un rato para ver si la ventana del panel "alcanza" al
-                        // contenido y cuánto tarda.
-                        const win = tasks?.Window?.window;
-                        console.log("WT-DBG task-added"
-                            + " plasmoidW=" + Math.round(tasks.width)
-                            + " windowW=" + (win ? Math.round(win.width) : "n/a")
-                            + " contentSize=" + Math.round(taskList.contentSize)
-                            + " taskListW=" + Math.round(taskList.width)
-                            + " count=" + taskRepeater.count);
-                        dbgSettleTimer.restart();
-                    }
+                    onItemAdded: taskRepeater.itemRevision++
                     onItemRemoved: taskRepeater.itemRevision++
 
                     delegate: Task {
