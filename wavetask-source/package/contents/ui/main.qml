@@ -1214,16 +1214,6 @@ PlasmoidItem {
                         _lastPointX = mappedPos.x;
                         _lastPointY = mappedPos.y;
 
-                        // Ignoramos los eventos "cola" que el HoverHandler sigue emitiendo
-                        // tras salir del dock (hovered=false). Si actualizáramos smoothMouse
-                        // con ellos, el centro de la gaussiana se desplazaría mientras el
-                        // zoom se desvanece y el colapso se vería entrecortado. Con el
-                        // puntero fuera, smoothMouse queda CONGELADO y el zoom se apaga
-                        // limpiamente en su sitio vía entryProgress. También cancela cualquier
-                        // salida/reset pendiente porque el cursor sí está dentro.
-                        if (!dockHoverHandler.hovered)
-                            return;
-
                         let mousePos = tasks.vertical ? mappedPos.y : mappedPos.x
 
                         if (taskList.smoothMouse < 0) {
@@ -1233,9 +1223,16 @@ PlasmoidItem {
                             (mousePos - taskList.smoothMouse) * 0.3
                         }
 
-                        taskList.insideDock = true
-                        exitTimer.stop()
-                        smoothResetTimer.stop()
+                        // Sólo tratamos el movimiento como "dentro" si el puntero está
+                        // realmente sobre el dock. Antes cancelábamos la salida de forma
+                        // incondicional, pero el HoverHandler sigue emitiendo pointChanged
+                        // un rato después de salir (hovered=false), así que cada uno de
+                        // esos eventos reiniciaba la cancelación y el zoom se quedaba
+                        // "colgado" hasta que dejaban de llegar puntos.
+                        if (dockHoverHandler.hovered) {
+                            taskList.insideDock = true
+                            exitTimer.stop()
+                        }
                     }
 
                     onHoveredChanged: {
@@ -1245,7 +1242,6 @@ PlasmoidItem {
                             // zoom colapse mientras el ratón se mueve dentro del dock.
                             taskList.insideDock = true;
                             exitTimer.stop();
-                            smoothResetTimer.stop();
                         } else {
                             // DEBUG: al perder el hover, volcamos la geometría para
                             // ver si la ventana del panel es más estrecha que el
@@ -1323,26 +1319,6 @@ PlasmoidItem {
                     onTriggered: {
                         if (!dockHoverHandler.hovered) {
                             taskList.insideDock = false;
-                            // Programamos el reset de smoothMouse para DESPUÉS de que
-                            // termine el desvanecimiento (no ahora: ponerlo a -1 haría
-                            // que zoomFactor devuelva 1.0 de golpe y el colapso sería
-                            // instantáneo/brusco).
-                            smoothResetTimer.restart();
-                        }
-                    }
-                }
-
-                // Tras el desvanecimiento completo del zoom al salir, "olvidamos" la
-                // última posición del ratón. Así, al volver a entrar, el primer punto
-                // hace que smoothMouse SALTE a la posición real en vez de deslizarse
-                // desde donde salió (que se vería como una ola entrando de lado).
-                Timer {
-                    id: smoothResetTimer
-                    interval: 260
-                    repeat: false
-                    onTriggered: {
-                        if (!dockHoverHandler.hovered && !taskList.insideDock) {
-                            taskList.smoothMouse = -1;
                         }
                     }
                 }
