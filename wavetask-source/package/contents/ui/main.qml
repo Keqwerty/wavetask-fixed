@@ -1204,8 +1204,15 @@ PlasmoidItem {
                 HoverHandler {
                     id: dockHoverHandler
 
+                    // DEBUG: última posición del puntero (en coords del plasmoide).
+                    property real _lastPointX: -1
+                    property real _lastPointY: -1
+
                     onPointChanged: {
                         let mappedPos = taskList.mapToItem(tasks, point.position.x, point.position.y)
+
+                        _lastPointX = mappedPos.x;
+                        _lastPointY = mappedPos.y;
 
                         let mousePos = tasks.vertical ? mappedPos.y : mappedPos.x
 
@@ -1223,8 +1230,41 @@ PlasmoidItem {
                         if (hovered) {
                             taskList.insideDock = true;
                         } else {
+                            // DEBUG: al perder el hover, volcamos la geometría para
+                            // ver si la ventana del panel es más estrecha que el
+                            // contenido (contentSize) y por cuánto, y dónde estaba el
+                            // puntero respecto al borde derecho del contenido.
+                            const win = tasks?.Window?.window;
+                            const lastIconRight = taskList.centerOffset + taskList.iconsTotalSize;
+                            console.log("WT-DBG hover-lost"
+                                + " ptrX=" + Math.round(dockHoverHandler._lastPointX)
+                                + " plasmoidW=" + Math.round(tasks.width)
+                                + " windowW=" + (win ? Math.round(win.width) : "n/a")
+                                + " contentSize=" + Math.round(taskList.contentSize)
+                                + " taskListW=" + Math.round(taskList.width)
+                                + " centerOffset=" + Math.round(taskList.centerOffset)
+                                + " iconsTotal=" + Math.round(taskList.iconsTotalSize)
+                                + " lastIconRight=" + Math.round(lastIconRight)
+                                + " count=" + taskRepeater.count);
                             exitTimer.restart();
                         }
+                    }
+                }
+
+                // DEBUG: re-mide la geometría un rato después de añadirse una app,
+                // para comparar con el instante del "task-added" y ver el transitorio.
+                Timer {
+                    id: dbgSettleTimer
+                    interval: 1500
+                    repeat: false
+                    onTriggered: {
+                        const win = tasks?.Window?.window;
+                        console.log("WT-DBG settled(+1.5s)"
+                            + " plasmoidW=" + Math.round(tasks.width)
+                            + " windowW=" + (win ? Math.round(win.width) : "n/a")
+                            + " contentSize=" + Math.round(taskList.contentSize)
+                            + " taskListW=" + Math.round(taskList.width)
+                            + " count=" + taskRepeater.count);
                     }
                 }
 
@@ -1248,7 +1288,20 @@ PlasmoidItem {
                     // item. iconsTotalSize lo lee para recalcular con el ancho real
                     // en cuanto el icono nuevo existe, sin esperar a otro evento.
                     property int itemRevision: 0
-                    onItemAdded: taskRepeater.itemRevision++
+                    onItemAdded: {
+                        taskRepeater.itemRevision++;
+                        // DEBUG: geometría justo al añadirse una app, y de nuevo tras
+                        // un rato para ver si la ventana del panel "alcanza" al
+                        // contenido y cuánto tarda.
+                        const win = tasks?.Window?.window;
+                        console.log("WT-DBG task-added"
+                            + " plasmoidW=" + Math.round(tasks.width)
+                            + " windowW=" + (win ? Math.round(win.width) : "n/a")
+                            + " contentSize=" + Math.round(taskList.contentSize)
+                            + " taskListW=" + Math.round(taskList.width)
+                            + " count=" + taskRepeater.count);
+                        dbgSettleTimer.restart();
+                    }
                     onItemRemoved: taskRepeater.itemRevision++
 
                     delegate: Task {
