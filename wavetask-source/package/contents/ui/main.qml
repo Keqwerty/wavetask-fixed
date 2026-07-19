@@ -1145,7 +1145,16 @@ PlasmoidItem {
                        }
                    }
 
-                   return total;
+                   // Suelo garantizado: cada delegado vivo mide iconSize * zoomFactor
+                   // con zoomFactor >= 1, así que la suma real NUNCA puede ser menor
+                   // que baseContentSize (count * iconSize + huecos). Si sale menor es
+                   // porque algún delegado aún no existe (justo al abrir una app): en
+                   // ese hueco de 1-N frames "total" queda corto, centerOffset se
+                   // infla y la última app se dibuja fuera del plasmoide -> visible
+                   // pero sin ventana debajo => zona muerta (no hay hover ni click).
+                   // Apoyando el valor en baseContentSize el centrado ya es correcto
+                   // desde el primer frame tras crecer "count", sin esperar al delegado.
+                   return Math.max(total, baseContentSize);
                }
 
                readonly property real centerOffset: {
