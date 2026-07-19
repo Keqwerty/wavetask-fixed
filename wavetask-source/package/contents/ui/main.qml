@@ -1223,17 +1223,25 @@ PlasmoidItem {
                             (mousePos - taskList.smoothMouse) * 0.3
                         }
 
-                        // Un cambio de punto significa que el cursor SÍ está dentro:
-                        // cancelamos cualquier salida pendiente. Así, si hovered se
-                        // cae un instante por el reflow del GridLayout durante el
-                        // zoom, no se colapsa el foco mientras el ratón se mueve.
-                        taskList.insideDock = true
-                        exitTimer.stop()
+                        // Sólo tratamos el movimiento como "dentro" si el puntero está
+                        // realmente sobre el dock. Antes cancelábamos la salida de forma
+                        // incondicional, pero el HoverHandler sigue emitiendo pointChanged
+                        // un rato después de salir (hovered=false), así que cada uno de
+                        // esos eventos reiniciaba la cancelación y el zoom se quedaba
+                        // "colgado" hasta que dejaban de llegar puntos.
+                        if (dockHoverHandler.hovered) {
+                            taskList.insideDock = true
+                            exitTimer.stop()
+                        }
                     }
 
                     onHoveredChanged: {
                         if (hovered) {
+                            // Al recuperar el hover (p. ej. tras un micro-parpadeo del
+                            // reflow) cancelamos la salida pendiente: eso evita que el
+                            // zoom colapse mientras el ratón se mueve dentro del dock.
                             taskList.insideDock = true;
+                            exitTimer.stop();
                         } else {
                             // DEBUG: al perder el hover, volcamos la geometría para
                             // ver si la ventana del panel es más estrecha que el
@@ -1301,12 +1309,10 @@ PlasmoidItem {
 
                 Timer {
                     id: exitTimer
-                    // Histéresis de salida: antes eran 40 ms, demasiado poco frente a
-                    // los micro-parpadeos de "hovered" que provoca el reflow del
-                    // GridLayout durante el zoom. Con el ratón en movimiento
-                    // onPointChanged lo detiene, así que esto sólo dispara cuando el
-                    // cursor de verdad ha salido (ya no llegan puntos).
-                    interval: 200
+                    // Histéresis de salida: puentea los micro-parpadeos de "hovered"
+                    // del reflow del GridLayout (cada recuperación de hover cancela el
+                    // timer), pero corta rápido cuando el cursor sale de verdad.
+                    interval: 120
                     repeat: false
                     onTriggered: {
                         if (!dockHoverHandler.hovered) {
