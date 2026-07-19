@@ -1268,14 +1268,17 @@ PlasmoidItem {
                         const first = n > 0 ? taskRepeater.itemAt(0) : null;
                         const last = n > 1 ? taskRepeater.itemAt(n - 1) : null;
                         console.log("WT-DBG zoom"
-                            + " hovered=" + dockHoverHandler.hovered
-                            + " insideDock=" + taskList.insideDock
                             + " smoothMouse=" + Math.round(taskList.smoothMouse)
                             + " _zoom=" + (Plasmoid.configuration.magnification || 0)
-                            + " zf0=" + (first ? first.zoomFactor.toFixed(2) : "n/a")
-                            + " entry0=" + (first ? first.entryProgress.toFixed(2) : "n/a")
-                            + " zfLast=" + (last ? last.zoomFactor.toFixed(2) : "n/a")
-                            + " taskListW=" + Math.round(taskList.width));
+                            + " iconSize=" + Plasmoid.configuration.iconSize
+                            + " tasksH=" + Math.round(tasks.height)
+                            + " | zf0=" + (first ? first.zoomFactor.toFixed(2) : "n/a")
+                            + " x0=" + (first ? Math.round(first.x) : "n/a")
+                            + " w0=" + (first ? Math.round(first.width) : "n/a")
+                            + " h0=" + (first ? Math.round(first.height) : "n/a")
+                            + " | zfLast=" + (last ? last.zoomFactor.toFixed(2) : "n/a")
+                            + " xLast=" + (last ? Math.round(last.x) : "n/a")
+                            + " wLast=" + (last ? Math.round(last.width) : "n/a"));
                     }
                 }
 
