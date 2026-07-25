@@ -2,7 +2,7 @@
 
 _pkgname=wavetask
 pkgname="$_pkgname-git"
-pkgver=1.4.r21.g3e44fb0
+pkgver=1.4.r32.g1ada20e
 pkgrel=1
 pkgdesc="A Plasma 6 task manager plasmoid with zoom effect (macOS Dock skin)"
 arch=('x86_64')
