@@ -26,6 +26,7 @@ depends=(
   'plasma-activities-stats'
   'plasma-pa'
   'plasma-workspace'
+  'plasma-desktop'
   'libksysguard'
   'kwin'
   'libepoxy'

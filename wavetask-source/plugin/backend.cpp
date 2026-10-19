@@ -12,6 +12,8 @@
 #include <KFilePlacesModel>
 #include <KLocalizedString>
 #include <KNotificationJobUiDelegate>
+#include <KPluginFactory>
+#include <KPluginMetaData>
 #include <KService>
 #include <KServiceAction>
 #include <KWindowEffects>
@@ -23,11 +25,13 @@
 
 #include <QAction>
 #include <QActionGroup>
+#include <QCoreApplication>
 #include <QMenu>
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QStandardPaths>
 #include <QTimer>
+#include <QVersionNumber>
 #include <QWindow>
 
 #include <PlasmaActivities/Stats/Cleaning>
@@ -70,6 +74,22 @@ Backend::Backend(QObject *parent)
                     m_activityManagerPluginsSettings.load();
                 }
             });
+
+    // Plasma 6.8 moved task shortcuts into its applet backend. Load that
+    // plugin before QML imports its module so stock and custom docks share
+    // the same shortcut dispatcher instead of registering competing actions.
+    if (QVersionNumber::fromString(QCoreApplication::applicationVersion()) >= QVersionNumber(6, 8, 0)) {
+        static const bool taskManagerPluginLoaded = [] {
+            const auto result = KPluginFactory::loadFactory(
+                KPluginMetaData(QStringLiteral("plasma/applets/org.kde.plasma.taskmanager"), KPluginMetaData::AllowEmptyMetaData));
+            if (!result) {
+                qCCritical(WAVETASK_DEBUG) << "Cannot load Plasma Task Manager shortcut backend:" << result.errorString << result.errorText;
+                return false;
+            }
+            return true;
+        }();
+        m_taskManagerShortcutsInApplet = taskManagerPluginLoaded;
+    }
 
     // Relay the compositor's "show desktop" (Win+D) state changes to QML so the
     // blur behind the dock can be re-applied (KWin drops it in that transition).
@@ -299,6 +319,11 @@ void Backend::metaKeyReleased()
 }
 
 // --- End Meta Key Detection ---
+
+bool Backend::taskManagerShortcutsInApplet() const
+{
+    return m_taskManagerShortcutsInApplet;
+}
 
 bool Backend::isShowingDesktop() const
 {

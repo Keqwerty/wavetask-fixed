@@ -8,8 +8,10 @@
 
 #include <KConfigWatcher>
 
+#include <QAction>
 #include <QHash>
 #include <QObject>
+#include <QQuickItem>
 #include <QRect>
 #include <QSet>
 
@@ -19,10 +21,8 @@
 
 #include "kactivitymanagerd_plugins_settings.h"
 
-class QAction;
 class QActionGroup;
 class QFileSystemWatcher;
-class QQuickItem;
 class QQuickWindow;
 class QJsonArray;
 class QSocketNotifier;
@@ -58,6 +58,8 @@ public:
     // Toggling it drops the blur behind panels, so QML watches this to re-apply it.
     Q_PROPERTY(bool showingDesktop READ isShowingDesktop NOTIFY showingDesktopChanged)
 
+    Q_PROPERTY(bool taskManagerShortcutsInApplet READ taskManagerShortcutsInApplet CONSTANT)
+
     explicit Backend(QObject *parent = nullptr);
     ~Backend() override;
 
@@ -80,6 +82,8 @@ public:
 
     bool isShowingDesktop() const;
 
+    bool taskManagerShortcutsInApplet() const;
+
 Q_SIGNALS:
     void addLauncher(const QUrl &url) const;
 
@@ -99,6 +103,7 @@ private:
 
     QActionGroup *m_actionGroup = nullptr;
     KActivities::Consumer *m_activitiesConsumer = nullptr;
+    bool m_taskManagerShortcutsInApplet = false;
 
     KActivityManagerdPluginsSettings m_activityManagerPluginsSettings;
     KConfigWatcher::Ptr m_activityManagerPluginsSettingsWatcher;

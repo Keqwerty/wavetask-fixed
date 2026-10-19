@@ -8,7 +8,44 @@ Since Plasma 6.6 does not allow direct access to org.kde.plasma.private.taskmana
 
 ## Support for previous Plasma releases
 
-Currently supported versions: 6.6, 6.7
+Currently supported versions: 6.6, 6.7, 6.8 (Wayland).
+
+### Migrating from Plasma 6.7 to 6.8
+
+Rebuild and reinstall WaveTask after upgrading Plasma. The native plugin links
+against Plasma libraries whose ABI changes between releases; copying the old
+binary is not sufficient. Keep `plasma-desktop` installed: on 6.8 WaveTask loads
+the stock Task Manager backend's embedded QML module for its shared global
+shortcut dispatcher. On 6.7 the shell continues to handle Meta+number itself.
+
+Existing widget instances and their configuration are reused. Do not delete
+`plasma-org.kde.plasma.desktop-appletsrc` or recreate the dock to migrate.
+Pinned launchers, grouping settings, icon size and skin settings keep their
+existing keys and values.
+
+The port follows the actual 6.7.5 → 6.8.0 upstream changes:
+
+- [Task shortcuts moved from the shell into the Task Manager backend](https://invent.kde.org/plasma/plasma-desktop/-/commit/8cdade3d2d972b53ca01c50efe99d97a36fb7fb6).
+  WaveTask joins that dispatcher rather than registering competing shortcuts
+  when a stock Task Manager is also present. The 6.8 cycle/move shortcuts operate
+  on individual grouped windows and persist reordered launchers.
+- [Plasma's QML window previews](https://invent.kde.org/plasma/plasma-desktop/-/blob/v6.8.0/applets/taskmanager/qml/ToolTipInstance.qml)
+  now use PipeWire only. The removed X11 `WindowThumbnail` type is no longer
+  referenced, including in inactive components. Plasma 6.7 X11 live previews
+  are no longer provided.
+- [Task model roles](https://invent.kde.org/plasma/plasma-workspace/-/blob/v6.8.0/libtaskmanager/abstracttasksmodel.h)
+  no longer expose window shading. Preview readiness uses the per-window
+  `IsMapped` role on 6.8 and the existing geometry check on 6.7. Audio matching
+  respects 6.8's normalized application IDs.
+- The dock binds to its actual containment type, without relying on generated
+  QML class names or delayed polling. New dock panels use the scripting API's
+  `"fit"` length mode.
+
+Build/install and isolated Wayland runtime checks were performed on Plasma
+6.7.5 / Qt 6.11.2 and Plasma 6.8.0 / Qt 6.12.0. These covered persisted dock
+settings, grouped and single-window live previews, task shortcuts, launcher
+reordering and application audio matching/muting. Plasma 6.6 was not separately
+runtime-tested.
 
 If you need to install it on Plasma 6.5 or lower, I recommend you do it from here: https://github.com/vickoc911/org.kde.plasma.wavetask
 
@@ -52,6 +89,21 @@ git clone https://aur.archlinux.org/wavetask.git
 cd wavetask
 makepkg -si
 ```
+
+For a local checkout of this fork, including uncommitted migration fixes, run
+from the repository root:
+
+```sh
+makepkg -p PKGBUILD.local -si
+```
+
+`PKGBUILD.local` builds the current `wavetask-source/` directory and marks the
+package version with `.local`. It does not clone the old `refactor` branch.
+The regular `PKGBUILD` clones GitHub, so it does not include local changes.
+If Plasma reports `PlasmaCore.WindowThumbnail is not a type`, the installed
+widget still contains the old X11 preview code; install the rebuilt package.
+The corrected local package was loaded with `plasmawindowed` and visually
+checked on Plasma 6.8.0 / Qt 6.12.0.
 
 </details>
 <details>

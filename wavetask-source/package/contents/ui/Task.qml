@@ -54,7 +54,8 @@ PlasmaCore.ToolTipArea {
 
     readonly property int pid: model.AppPid
     readonly property string appName: model.AppName
-    readonly property string appId: model.AppId.replace(/\.desktop/, '')
+    // Plasma 6.8 adds StorageId and supplies AppId as desktopEntryName instead.
+    readonly property string appId: typeof model.StorageId !== "undefined" ? model.AppId : model.AppId.replace(/\.desktop$/, '')
     readonly property bool isIcon: tasksRoot.iconsOnly || model.IsLauncher
     property bool toolTipOpen: false
     property bool inPopup: false
@@ -324,7 +325,7 @@ PlasmaCore.ToolTipArea {
 
         // Check appid first for app using portal
         // https://docs.pipewire.org/page_portal.html
-        var streams = pa.streamsForAppId(task.appId);
+        var streams = task.appId ? pa.streamsForAppId(task.appId) : [];
         if (!streams.length) {
             streams = pa.streamsForPid(model.AppPid);
             if (streams.length) {
@@ -372,6 +373,8 @@ PlasmaCore.ToolTipArea {
         mainItem.launcherUrl = Qt.binding(() => model.LauncherUrlWithoutIcon);
         mainItem.isLauncher = Qt.binding(() => model.IsLauncher);
         mainItem.isMinimized = Qt.binding(() => model.IsMinimized);
+        // IsMapped was added in Plasma 6.8; retain 6.7's geometry readiness check.
+        mainItem.isReadyForPainting = Qt.binding(() => typeof model.IsMapped !== "undefined" ? model.IsMapped : (model.Geometry?.width > 0 && model.Geometry?.height > 0));
         mainItem.display = Qt.binding(() => model.display);
         mainItem.genericName = Qt.binding(() => model.GenericName);
         mainItem.virtualDesktops = Qt.binding(() => model.VirtualDesktops);

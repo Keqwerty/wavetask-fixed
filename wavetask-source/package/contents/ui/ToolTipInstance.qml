@@ -19,7 +19,6 @@ import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.components as PlasmaComponents3
 import org.kde.plasma.extras as PlasmaExtras
 import org.kde.kirigami as Kirigami
-import org.kde.kwindowsystem
 
 ColumnLayout {
     id: root
@@ -33,6 +32,7 @@ ColumnLayout {
     required property bool isOnAllVirtualDesktops
     required property /*list<var>*/ var virtualDesktops // Can't use list<var> because of QTBUG-127600
     required property list<string> activities
+    required property bool isReadyForPainting
 
     property bool hasTrackInATitle: false
     property int orientation: ListView.Vertical // vertical for compact single-window tooltips
@@ -240,72 +240,16 @@ ColumnLayout {
         }
 
         Loader {
-            id: thumbnailLoader
-            active: !toolTipDelegate.isLauncher
-                && !albumArtImage.visible
-                && (Number.isInteger(thumbnailSourceItem.winId) || pipeWireLoader.item
-                && !(pipeWireLoader.item as PipeWireThumbnail).hasThumbnail)
-                && root.index !== -1 // Avoid loading when the instance is going to be destroyed
-            asynchronous: true
-            visible: active
+            id: pipeWireLoader
             anchors.fill: hoverHandler
             // Indent a little bit so that neither the thumbnail nor the drop
             // shadow can cover up the highlight
             anchors.margins: Kirigami.Units.smallSpacing * 2
 
-            sourceComponent: root.isMinimized || pipeWireLoader.active ? iconItem : x11Thumbnail
-
-            Component {
-                id: x11Thumbnail
-
-                PlasmaCore.WindowThumbnail {
-                    winId: thumbnailSourceItem.winId
-                }
-            }
-
-            // when minimized, we don't have a preview on X11, so show the icon
-            Component {
-                id: iconItem
-
-                Kirigami.Icon {
-                    id: realIconItem
-                    source: toolTipDelegate.icon
-                    animated: false
-                    visible: valid
-                    opacity: pipeWireLoader.active ? 0 : 1
-
-                    SequentialAnimation {
-                        running: true
-
-                        PauseAnimation {
-                            duration: Kirigami.Units.humanMoment
-                        }
-
-                        NumberAnimation {
-                            id: showAnimation
-                            duration: Kirigami.Units.longDuration
-                            easing.type: Easing.OutCubic
-                            property: "opacity"
-                            target: realIconItem
-                            to: 1
-                        }
-                    }
-
-                }
-            }
-        }
-
-        Loader {
-            id: pipeWireLoader
-            anchors.fill: hoverHandler
-            // Indent a little bit so that neither the thumbnail nor the drop
-            // shadow can cover up the highlight
-            anchors.margins: thumbnailLoader.anchors.margins
-
             active: Plasmoid.configuration.showToolTips
                 && !toolTipDelegate.isLauncher
                 && !albumArtImage.visible
-                && KWindowSystem.isPlatformWayland
+                && root.isReadyForPainting
                 && root.index !== -1
             asynchronous: true
             //In a loader since we might not have PipeWire available yet (WITH_PIPEWIRE could be undefined in plasma-workspace/libtaskmanager/declarative/taskmanagerplugin.cpp)
@@ -314,10 +258,10 @@ ColumnLayout {
 
         Loader {
             active: Plasmoid.configuration.showToolTips
-                && (((pipeWireLoader.item as PipeWireThumbnail)?.hasThumbnail ?? false) || (thumbnailLoader.status === Loader.Ready && !root.isMinimized))
+                && ((pipeWireLoader.item as PipeWireThumbnail)?.hasThumbnail ?? false)
             asynchronous: true
             visible: active
-            anchors.fill: pipeWireLoader.active ? pipeWireLoader : thumbnailLoader
+            anchors.fill: pipeWireLoader
 
             sourceComponent: GE.DropShadow {
                 horizontalOffset: 0
@@ -325,7 +269,7 @@ ColumnLayout {
                 radius: 8
                 samples: Math.round(radius * 1.5)
                 color: "Black"
-                source: pipeWireLoader.active ? pipeWireLoader.item : thumbnailLoader.item // source could be undefined when albumArt is available, so put it in a Loader.
+                source: pipeWireLoader.item // source could be undefined when albumArt is available, so put it in a Loader.
             }
         }
 

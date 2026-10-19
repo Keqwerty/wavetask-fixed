@@ -3,7 +3,7 @@ panel.location = "bottom";
 panel.height = 86;
 
 // --- AJUSTE DE CONTENIDO ---
-panel.lengthMode = 1; // FitContent
+panel.lengthMode = "fit";
 panel.minimumLength = 0;
 panel.maximumLength = 0;
 panel.alignment = "center";

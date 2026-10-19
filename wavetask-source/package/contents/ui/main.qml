@@ -96,26 +96,21 @@ PlasmoidItem {
   //  Plasmoid.constraintHints: Plasmoid.CanFillArea
 
   // --- LÓGICA DE TRANSPARENCIA ---
-  property Item containmentItem: null
-  readonly property int depth: 14
+  readonly property Item containmentItem: {
+      let item = tasks.parent;
+      while (item) {
+          if (item instanceof ContainmentItem) {
+              return item;
+          }
+          item = item.parent;
+      }
+      return null;
+  }
   property bool isBackgroundDisabled: true
 
-  function lookForContainer(object, tries) {
-      if (tries === 0 || object === null) return;
-      // busca el panel
-      if (object.toString().indexOf("ContainmentItem_QML") > -1) {
-          tasks.containmentItem = object;
-          console.log("Contenedor encontrado en el intento: " + (depth - tries));
-          console.log("containment width:", tasks.containmentItem.width)
-          console.log("containment height:", tasks.containmentItem.height)
-
-      } else {
-          lookForContainer(object.parent, tries - 1);
-      }
-  }
+  onContainmentItemChanged: applyBackgroundHint()
 
   function applyBackgroundHint() {
-      if (tasks.containmentItem === null) lookForContainer(tasks.parent, depth);
       if (tasks.containmentItem === null) return;
 
       // Aplicamos el NoBackground (0) o Default (1)
@@ -265,18 +260,106 @@ PlasmoidItem {
         if (vertical) {
             return Kirigami.Units.gridUnit * 10;
         }
-        return taskList.Layout.maximumWidth
+        return taskList.Layout.maximumWidth + layoutNudge
     }
     Layout.preferredHeight: {
         if (shouldShrinkToZero) {
             return 0.01;
         }
         if (vertical) {
-            return taskList.Layout.maximumHeight
+            return taskList.Layout.maximumHeight + layoutNudge
         }
         return Kirigami.Units.gridUnit * 2;
     }
 //END TODO
+
+    // --- RESINCRONIZACIÓN DEL ESPACIO RESERVADO EN EL PANEL ---
+    // Un panel en modo "ajustar al contenido" toma su longitud de nuestro
+    // Layout.preferredWidth. Si el número de tareas cambia mientras el panel
+    // está tapado por una ventana (visibilidad "las ventanas cubren el panel" /
+    // ocultación automática), el contenedor no vuelve a aplicar ese tamaño y
+    // se queda con el ancho anterior: al reaparecer, los iconos ya están
+    // colocados según el contentSize nuevo pero el fondo —anclado al ancho del
+    // plasmoide— sigue corto, así que el último icono queda fuera de la placa.
+    // El estado se congela hasta el siguiente cambio de "count" (abrir/cerrar
+    // otra app o anclar una), que es justo lo que se observaba.
+    //
+    // Sumamos un desplazamiento de 1 px alterno al tamaño preferido: es un
+    // cambio real de valor, así que obliga al contenedor a rehacer el layout,
+    // y al ser 1 px no se nota. El binding queda intacto (nunca se asigna
+    // Layout.preferredWidth de forma imperativa).
+    property real layoutNudge: 0
+
+    // ¿El panel nos dio menos espacio del que ocupan los iconos?
+    function layoutOutOfSync(): bool {
+        if (shouldShrinkToZero) {
+            return false;
+        }
+
+        const reserved = vertical ? tasks.height : tasks.width;
+
+        // Margen de 1 px: el tamaño preferido se redondea hacia arriba.
+        return reserved > 0 && reserved + 1 < taskList.contentSize;
+    }
+
+    function kickLayoutSync(): void {
+        if (!layoutOutOfSync()) {
+            return;
+        }
+
+        tasks.layoutNudge = (tasks.layoutNudge === 0) ? 1 : 0;
+
+        // Si el panel sigue oculto el nudge no llega a aplicarse, así que
+        // reintentamos un rato; los disparadores de abajo vuelven a armar el
+        // contador en cuanto algo indica que el panel puede haber reaparecido.
+        layoutResyncTimer.ticksLeft = 8;
+
+        if (!layoutResyncTimer.running) {
+            layoutResyncTimer.start();
+        }
+    }
+
+    Timer {
+        id: layoutResyncTimer
+
+        interval: 250
+        repeat: true
+
+        property int ticksLeft: 0
+
+        onTriggered: {
+            if (!tasks.layoutOutOfSync()) {
+                stop();
+                return;
+            }
+
+            tasks.layoutNudge = (tasks.layoutNudge === 0) ? 1 : 0;
+
+            if (--ticksLeft <= 0) {
+                stop();
+            }
+        }
+    }
+
+    // El propio cambio de tamaño del contenido (abrir/cerrar/anclar una app).
+    Connections {
+        target: taskList
+        function onContentSizeChanged() { tasks.kickLayoutSync() }
+    }
+
+    // Señales que delatan que el panel pudo volver a ser visible: minimizar,
+    // restaurar o activar una ventana mueve el panel fuera de la zona cubierta.
+    Connections {
+        target: tasksModel
+        function onActiveTaskChanged() { tasks.kickLayoutSync() }
+        function onDataChanged() { tasks.kickLayoutSync() }
+    }
+
+    // "Mostrar escritorio" (Win+D) no toca el modelo de tareas.
+    Connections {
+        target: tasks.backend
+        function onShowingDesktopChanged() { tasks.kickLayoutSync() }
+    }
 
     property Item dragSource
 
@@ -426,6 +509,16 @@ PlasmoidItem {
 
         onAddLauncher: url => {
             tasks.addLauncher(url);
+        }
+    }
+
+    // Plasma 6.8 moved global task shortcuts out of plasmashell. Use its
+    // shared dispatcher so stock Task Managers and WaveTask cannot compete.
+    Loader {
+        Component.onCompleted: {
+            if (backend.taskManagerShortcutsInApplet) {
+                setSource("TaskManagerShortcuts.qml", {taskManager: tasks});
+            }
         }
     }
 
@@ -797,10 +890,12 @@ PlasmoidItem {
                 visible: source.toString() !== ""
                 opacity: 1.0
                 readonly property real spacing: Kirigami.Units.largeSpacing
-                readonly property real topMarginSkin: tasks.containmentItem.height - 76
-                readonly property real leftMarginSkin: tasks.containmentItem.width - 76
+                readonly property real containmentHeight: tasks.containmentItem?.height ?? tasks.height
+                readonly property real containmentWidth: tasks.containmentItem?.width ?? tasks.width
+                readonly property real topMarginSkin: containmentHeight - 76
+                readonly property real leftMarginSkin: containmentWidth - 76
 
-                property real rightPanelOffset:(tasks.vertical && !tasks.isLeftPanel) ? ((tasks.containmentItem.width / 2) + Kirigami.Units.smallSpacing * 3) : 0
+                property real rightPanelOffset:(tasks.vertical && !tasks.isLeftPanel) ? ((containmentWidth / 2) + Kirigami.Units.smallSpacing * 3) : 0
 
                 // Cuánto crecieron los iconos con zoom respecto al base
                 readonly property real currentGrowth: Math.max(0, taskList.maxZoom + spacing * 8
@@ -1370,8 +1465,7 @@ PlasmoidItem {
         }
     }
 
-    // This is called by plasmashell in response to a Meta+number shortcut.
-    // TODO: Change type to int
+    // Called by the shell on 6.7 and the shared Task Manager backend on 6.8.
     function activateTaskAtIndex(index: var): void {
         if (typeof index !== "number") {
             return;
@@ -1417,24 +1511,4 @@ PlasmoidItem {
         TaskTools.taskManagerInstanceCount -= 1;
     }
 
-    // para hacer panel transparente
-    Timer {
-        id: initializeAppletTimer
-        interval: 1200
-        repeat: false // Lo hacemos repetir hasta que encuentre el contenedor
-        running: true
-
-        property int step: 0
-        readonly property int maxStep: 5
-
-        onTriggered: {
-            console.log("Intento de transparencia número: " + (step + 1));
-            applyBackgroundHint();
-
-            if (tasks.containmentItem !== null || step >= maxStep) {
-                stop(); // Se detiene cuando lo logra o alcanza el límite
-            }
-            step++;
-        }
-    }
 }
